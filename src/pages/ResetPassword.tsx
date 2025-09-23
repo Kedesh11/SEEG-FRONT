@@ -1,0 +1,193 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Eye, EyeOff, Lock, CheckCircle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+export function ResetPassword() {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const navigate = useNavigate();
+
+  const validatePassword = (pwd: string) => {
+    if (pwd.length < 8) return "Le mot de passe doit contenir au moins 8 caractères";
+    if (!/(?=.*[a-z])/.test(pwd)) return "Le mot de passe doit contenir au moins une lettre minuscule";
+    if (!/(?=.*[A-Z])/.test(pwd)) return "Le mot de passe doit contenir au moins une lettre majuscule";
+    if (!/(?=.*\d)/.test(pwd)) return "Le mot de passe doit contenir au moins un chiffre";
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      toast.error(passwordError);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // En attente de l’implémentation backend
+      setIsSuccess(true);
+      toast.info("La réinitialisation via l’API sera bientôt disponible.");
+      setTimeout(() => navigate('/auth'), 2500);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue s'est produite";
+      toast.error("Une erreur s'est produite: " + errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex items-center justify-center p-3 sm:p-4">
+        <Card className="w-full max-w-sm sm:max-w-md shadow-xl">
+          <CardHeader className="text-center space-y-3 sm:space-y-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
+            </div>
+            <CardTitle className="text-xl sm:text-2xl font-bold text-gray-900">
+              Demande enregistrée
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-3 sm:space-y-4">
+            <p className="text-sm sm:text-base text-gray-600">
+              Vous serez redirigé vers la page de connexion.
+            </p>
+            <Button 
+              variant="outline" 
+              className="w-full text-sm sm:text-base"
+              onClick={() => navigate('/auth')}
+            >
+              Aller à l'authentification
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 flex items-center justify-center p-3 sm:p-4">
+      <Card className="w-full max-w-sm sm:max-w-md shadow-xl">
+        <CardHeader className="text-center space-y-3 sm:space-y-4">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+            <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
+          </div>
+          <CardTitle className="text-xl sm:text-2xl font-bold text-gray-900">
+            Nouveau mot de passe
+          </CardTitle>
+          <p className="text-sm sm:text-base text-gray-600 px-2">
+            Cette fonctionnalité sera bientôt disponible via l’API.
+          </p>
+        </CardHeader>
+        
+        <CardContent className="px-4 sm:px-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm sm:text-base">Nouveau mot de passe</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Saisissez votre nouveau mot de passe"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="h-10 sm:h-12 pr-10 sm:pr-12 text-sm sm:text-base"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-10 sm:h-12 px-2 sm:px-3 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                  ) : (
+                    <Eye className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                  )}
+                </Button>
+              </div>
+              <div className="text-xs sm:text-sm text-gray-500 space-y-1">
+                <p>Le mot de passe doit contenir :</p>
+                <ul className="list-disc list-inside space-y-1 text-xs sm:text-sm">
+                  <li>Au moins 8 caractères</li>
+                  <li>Une lettre minuscule et majuscule</li>
+                  <li>Au moins un chiffre</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-sm sm:text-base">Confirmer le mot de passe</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Confirmez votre nouveau mot de passe"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="h-10 sm:h-12 pr-10 sm:pr-12 text-sm sm:text-base"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-10 sm:h-12 px-2 sm:px-3 hover:bg-transparent"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  disabled={isLoading}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                  ) : (
+                    <Eye className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            
+            <Button 
+              type="submit" 
+              className="w-full h-10 sm:h-12 text-sm sm:text-base"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-2 animate-spin" />
+                  <span className="hidden sm:inline">Mise à jour...</span>
+                  <span className="sm:hidden">Mise à jour...</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                  <span className="hidden sm:inline">Mettre à jour le mot de passe</span>
+                  <span className="sm:hidden">Mettre à jour</span>
+                </>
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
