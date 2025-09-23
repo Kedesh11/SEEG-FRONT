@@ -196,18 +196,10 @@ export function ApplicationForm({ jobTitle, jobId, onBack, onSubmit, application
       try {
         if (!user?.id) return;
 
-        const [{ data: dbUser, error: userError }, { data: profile, error: profileError }] = await Promise.all([
-          supabase
-            .from('users')
-            .select('first_name, last_name, email, matricule, phone')
-            .eq('id', user.id)
-            .maybeSingle(),
-          supabase
-            .from('candidate_profiles')
-            .select('current_position, gender, years_experience, address, birth_date')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-        ]);
+        const [{ data: dbUser, error: userError }, { data: profile, error: profileError }] = [
+          { data: null, error: null },
+          { data: null, error: null },
+        ] as const;
 
         if (userError) throw userError;
         if (profileError) throw profileError;

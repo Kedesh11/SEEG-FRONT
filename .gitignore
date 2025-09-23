@@ -1,0 +1,46 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Node/Vite build
+node_modules/
+dist/
+.cache/
+.tmp/
+coverage/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Vite
+vite.config.local.*
+
+# Storybook/Playwright (si ajoutés plus tard)
+.storybook-out/
+playwright-report/
+
+# Supabase (local et migrations)
+supabase/.branches/
+supabase/.temp/
+supabase/.cache/
+supabase/.env
+supabase/functions/*/.svelte-kit/
+supabase/migrations/
+
+# Lockfiles backup
+*.lockb
+
+# Misc
+*.local.* 

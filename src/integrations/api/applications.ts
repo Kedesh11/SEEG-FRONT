@@ -142,4 +142,41 @@ export async function downloadApplicationDocument(applicationId: string | number
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export interface ApplicationDraftDTO {
+  job_offer_id: string;
+  form_data: Record<string, unknown>;
+  ui_state?: Record<string, unknown>;
+  updated_at?: string;
+}
+
+export async function getApplicationDraft(jobOfferId: string): Promise<ApplicationDraftDTO | null> {
+  try {
+    const url = `${ROUTES.APPLICATIONS.BASE}/drafts?job_offer_id=${encodeURIComponent(jobOfferId)}`;
+    const { data } = await api.get<{ data?: ApplicationDraftDTO | null }>(url);
+    return (data?.data ?? null) as ApplicationDraftDTO | null;
+  } catch {
+    return null;
+  }
+}
+
+export async function upsertApplicationDraft(payload: ApplicationDraftDTO): Promise<boolean> {
+  try {
+    const url = `${ROUTES.APPLICATIONS.BASE}/drafts`;
+    await api.post(url, payload);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteApplicationDraft(jobOfferId: string): Promise<boolean> {
+  try {
+    const url = `${ROUTES.APPLICATIONS.BASE}/drafts?job_offer_id=${encodeURIComponent(jobOfferId)}`;
+    const { status } = await api.delete(url);
+    return status === 204 || status === 200;
+  } catch {
+    return false;
+  }
 } 

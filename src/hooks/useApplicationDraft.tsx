@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { getApplicationDraft, upsertApplicationDraft, deleteApplicationDraft } from '@/integrations/api/applications';
 
 export interface ApplicationDraftData {
   form_data: Record<string, any>;
@@ -15,27 +15,18 @@ export interface ApplicationDraftData {
 }
 
 export interface UseApplicationDraftReturn {
-  // État du brouillon
   draftData: ApplicationDraftData | null;
   isDraftLoaded: boolean;
   isSaving: boolean;
   lastSaved: Date | null;
-  
-  // Actions
   saveDraft: (formData: Record<string, any>, uiState?: Record<string, any>) => Promise<void>;
   loadDraft: () => Promise<ApplicationDraftData | null>;
   clearDraft: () => Promise<void>;
-  
-  // Auto-save
   enableAutoSave: (formData: Record<string, any>, uiState?: Record<string, any>) => void;
   disableAutoSave: () => void;
 }
 
-const AUTO_SAVE_INTERVAL = 15000; // 15 secondes
-
-// IMPORTANT: Les brouillons n'ont AUCUNE limite de temps
-// Ils restent sauvegardés indéfiniment jusqu'à suppression manuelle
-// ou soumission complète de la candidature
+const AUTO_SAVE_INTERVAL = 15000;
 
 export function useApplicationDraft(jobOfferId: string): UseApplicationDraftReturn {
   const { user } = useAuth();
@@ -48,147 +39,115 @@ export function useApplicationDraft(jobOfferId: string): UseApplicationDraftRetu
   const lastFormDataRef = useRef<string>('');
   const lastUiStateRef = useRef<string>('');
 
-  // Charger le brouillon au montage du composant
-  useEffect(() => {
-    if (user && jobOfferId) {
-      loadDraft();
-    }
-  }, [user, jobOfferId]);
-
-  // Nettoyer l'auto-save au démontage
-  useEffect(() => {
-    return () => {
-      if (autoSaveIntervalRef.current) {
-        clearInterval(autoSaveIntervalRef.current);
-      }
-    };
-  }, []);
+  const storageKey = user?.id && jobOfferId ? `draft_${user.id}_${jobOfferId}` : undefined;
 
   const loadDraft = useCallback(async (): Promise<ApplicationDraftData | null> => {
     if (!user || !jobOfferId) return null;
-
     try {
-      const { data, error } = await supabase
-        .from('application_drafts')
-        .select('form_data, ui_state, updated_at')
-        .eq('user_id', user.id)
-        .eq('job_offer_id', jobOfferId)
-        .single();
-
-      if (error) {
-        if (error.code !== 'PGRST116') { // Pas d'erreur si aucun brouillon trouvé
-          console.error('Error loading draft:', error);
-        }
-        setDraftData(null);
+      const apiDraft = await getApplicationDraft(jobOfferId);
+      if (apiDraft) {
+        const draft: ApplicationDraftData = {
+          form_data: (apiDraft.form_data as Record<string, any>) || {},
+          ui_state: (apiDraft.ui_state as Record<string, any>) || {},
+        };
+        setDraftData(draft);
         setIsDraftLoaded(true);
-        return null;
+        if (apiDraft.updated_at) setLastSaved(new Date(apiDraft.updated_at));
+        return draft;
       }
-
-      const draftData: ApplicationDraftData = {
-        form_data: data.form_data || {},
-        ui_state: data.ui_state || {}
-      };
-
-      setDraftData(draftData);
-      setLastSaved(new Date(data.updated_at));
+      if (storageKey) {
+        const raw = localStorage.getItem(storageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as ApplicationDraftData;
+          setDraftData(parsed);
+          setIsDraftLoaded(true);
+          return parsed;
+        }
+      }
+      setDraftData(null);
       setIsDraftLoaded(true);
-      
-      console.log('📄 Brouillon chargé:', draftData);
-      return draftData;
+      return null;
     } catch (error) {
       console.error('Error loading draft:', error);
+      if (storageKey) {
+        try {
+          const raw = localStorage.getItem(storageKey);
+          if (raw) {
+            const parsed = JSON.parse(raw) as ApplicationDraftData;
+            setDraftData(parsed);
+            setIsDraftLoaded(true);
+            return parsed;
+          }
+        } catch { /* ignore */ }
+      }
       setDraftData(null);
       setIsDraftLoaded(true);
       return null;
     }
-  }, [user, jobOfferId]);
+  }, [user, jobOfferId, storageKey]);
+
+  useEffect(() => {
+    if (user && jobOfferId) {
+      loadDraft();
+    }
+  }, [user, jobOfferId, loadDraft]);
+
+  useEffect(() => {
+    return () => { if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current); };
+  }, []);
 
   const saveDraft = useCallback(async (formData: Record<string, any>, uiState: Record<string, any> = {}): Promise<void> => {
     if (!user || !jobOfferId) return;
-
-    // Éviter les sauvegardes inutiles
     const formDataStr = JSON.stringify(formData);
     const uiStateStr = JSON.stringify(uiState);
-    
-    if (formDataStr === lastFormDataRef.current && uiStateStr === lastUiStateRef.current) {
-      return;
-    }
+    if (formDataStr === lastFormDataRef.current && uiStateStr === lastUiStateRef.current) return;
 
     setIsSaving(true);
-
     try {
-      const { error } = await supabase
-        .from('application_drafts')
-        .upsert({
-          user_id: user.id,
-          job_offer_id: jobOfferId,
-          form_data: formData,
-          ui_state: uiState,
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Error saving draft:', error);
-        toast.error('Erreur lors de la sauvegarde du brouillon');
-        return;
-      }
-
-      const newDraftData: ApplicationDraftData = {
-        form_data: formData,
-        ui_state: uiState
-      };
-
+      const ok = await upsertApplicationDraft({ job_offer_id: jobOfferId, form_data: formData, ui_state: uiState });
+      if (!ok) throw new Error('API draft save failed');
+      const newDraftData: ApplicationDraftData = { form_data: formData, ui_state: uiState };
       setDraftData(newDraftData);
       setLastSaved(new Date());
       lastFormDataRef.current = formDataStr;
       lastUiStateRef.current = uiStateStr;
-
-      console.log('💾 Brouillon sauvegardé:', newDraftData);
+      if (storageKey) localStorage.setItem(storageKey, JSON.stringify(newDraftData));
+      console.log('💾 Brouillon sauvegardé via API');
     } catch (error) {
       console.error('Error saving draft:', error);
+      try {
+        if (storageKey) localStorage.setItem(storageKey, JSON.stringify({ form_data: formData, ui_state: uiState }));
+        setLastSaved(new Date());
+        console.warn('Draft saved locally as fallback');
+      } catch { /* ignore */ }
       toast.error('Erreur lors de la sauvegarde du brouillon');
     } finally {
       setIsSaving(false);
     }
-  }, [user, jobOfferId]);
+  }, [user, jobOfferId, storageKey]);
 
   const clearDraft = useCallback(async (): Promise<void> => {
     if (!user || !jobOfferId) return;
-
     try {
-      const { error } = await supabase
-        .from('application_drafts')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('job_offer_id', jobOfferId);
-
-      if (error) {
-        console.error('Error clearing draft:', error);
-        return;
-      }
-
+      const ok = await deleteApplicationDraft(jobOfferId);
+      if (!ok) throw new Error('API draft delete failed');
       setDraftData(null);
       setLastSaved(null);
       lastFormDataRef.current = '';
       lastUiStateRef.current = '';
-
-      console.log('🗑️ Brouillon supprimé');
+      if (storageKey) localStorage.removeItem(storageKey);
+      console.log('🗑️ Brouillon supprimé via API');
     } catch (error) {
       console.error('Error clearing draft:', error);
+      if (storageKey) localStorage.removeItem(storageKey);
+      setDraftData(null);
+      setLastSaved(null);
     }
-  }, [user, jobOfferId]);
+  }, [user, jobOfferId, storageKey]);
 
   const enableAutoSave = useCallback((formData: Record<string, any>, uiState: Record<string, any> = {}) => {
-    // Nettoyer l'ancien intervalle s'il existe
-    if (autoSaveIntervalRef.current) {
-      clearInterval(autoSaveIntervalRef.current);
-    }
-
-    // Créer un nouvel intervalle
-    autoSaveIntervalRef.current = setInterval(() => {
-      saveDraft(formData, uiState);
-    }, AUTO_SAVE_INTERVAL);
-
+    if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current);
+    autoSaveIntervalRef.current = setInterval(() => { saveDraft(formData, uiState); }, AUTO_SAVE_INTERVAL);
     console.log('⏰ Auto-save activé (toutes les 15 secondes)');
   }, [saveDraft]);
 
@@ -201,18 +160,13 @@ export function useApplicationDraft(jobOfferId: string): UseApplicationDraftRetu
   }, []);
 
   return {
-    // État
     draftData,
     isDraftLoaded,
     isSaving,
     lastSaved,
-    
-    // Actions
     saveDraft,
     loadDraft,
     clearDraft,
-    
-    // Auto-save
     enableAutoSave,
     disableAutoSave
   };
