@@ -61,15 +61,12 @@ const RecruiterJobs = lazy(() => import("./pages/recruiter/RecruiterJobs"));
 const RecruiterProfile = lazy(() => import("./pages/recruiter/RecruiterProfile"));
 const CandidateAnalysis = lazy(() => import("./pages/recruiter/CandidateAnalysis"));
 const Traitements_IA = lazy(() => import("./pages/recruiter/Traitements_IA"));
-const AdvancedDashboard = lazy(() => import("./pages/recruiter/AdvancedDashboard"));
-const RecruiterLogin = lazy(() => import("./pages/recruiter/RecruiterLogin"));
 
 // Observer pages
 const ObserverDashboard = lazy(() => import("./pages/observer/ObserverDashboard"));
 const ObserverCandidatesPage = lazy(() => import("./pages/observer/ObserverCandidatesPage"));
 const ObserverCandidateAnalysis = lazy(() => import("./pages/observer/ObserverCandidateAnalysis"));
 const ObserverTraitements_IA = lazy(() => import("./pages/observer/Traitements_IA"));
-const ObserverAdvancedDashboard = lazy(() => import("./pages/observer/ObserverAdvancedDashboard"));
 
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -105,6 +102,7 @@ const router = createBrowserRouter(
       <Route path="candidate/applications" element={<CandidateApplications />} />
       <Route path="candidate/applications/:id/edit" element={<ProtectedRoute requiredRole="candidat"><EditApplication /></ProtectedRoute>} />
       <Route path="candidate/applications/draft/:jobOfferId" element={<ProtectedRoute requiredRole="candidat"><ApplyToJob /></ProtectedRoute>} />
+      <Route path="candidate/applications/drafts/:jobOfferId" element={<ProtectedRoute requiredRole="candidat"><ApplyToJob /></ProtectedRoute>} />
       <Route path="candidate/profile" element={<CandidateProfile />} />
       <Route path="candidate/settings" element={<CandidateSettings />} />
       <Route path="company-context" element={<CompanyContext />} />
@@ -114,8 +112,6 @@ const router = createBrowserRouter(
       <Route path="change-password" element={<ProtectedRoute requiredRole="candidat"><CandidateSettings /></ProtectedRoute>} />
       
       {/* Recruiter Routes */}
-      <Route path="recruiter/login" element={<RecruiterLogin />} />
-      <Route path="recruiter/advanced-dashboard" element={<ProtectedRecruiterReadRoute><AdvancedDashboard /></ProtectedRecruiterReadRoute>} />
       <Route path="recruiter" element={<ProtectedRecruiterReadRoute><RecruiterDashboard /></ProtectedRecruiterReadRoute>} />
       <Route path="recruiter/dashboard" element={<ProtectedRecruiterReadRoute><RecruiterDashboard /></ProtectedRecruiterReadRoute>} />
       <Route path="recruiter/profile" element={<ProtectedRecruiterReadRoute><RecruiterProfile /></ProtectedRecruiterReadRoute>} />
@@ -128,7 +124,6 @@ const router = createBrowserRouter(
       <Route path="recruiter/traitements-ia" element={<ProtectedRecruiterReadRoute><Traitements_IA /></ProtectedRecruiterReadRoute>} />
       
       {/* Observer Routes */}
-      <Route path="observer/advanced-dashboard" element={<ProtectedRecruiterReadRoute><ObserverAdvancedDashboard /></ProtectedRecruiterReadRoute>} />
       <Route path="observer/dashboard" element={<ProtectedRecruiterReadRoute><ObserverDashboard /></ProtectedRecruiterReadRoute>} />
       <Route path="observer/candidates" element={<ProtectedRecruiterReadRoute><ObserverCandidatesPage /></ProtectedRecruiterReadRoute>} />
       <Route path="observer/candidates/:id/analysis" element={<ProtectedRecruiterReadRoute><ObserverCandidateAnalysis /></ProtectedRecruiterReadRoute>} />
