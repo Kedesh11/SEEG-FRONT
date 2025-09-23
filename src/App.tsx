@@ -20,14 +20,14 @@ import { MAINTENANCE_MODE, MAINTENANCE_HOURS } from '@/config/maintenance';
 import './index.css';
 import { ErrorBoundary } from 'react-error-boundary';
 import type { FallbackProps } from 'react-error-boundary';
-import { ErrorFallback } from '@/components/ui/ErrorFallback';
+import { ErrorFallback } from './pages/error';
 
 //Maintenance page
 const Maintenance = lazy(() => import("./pages/maintenance"));
 
 // Error pages
 const NotFoundPage = lazy(() => import("./pages/404"));
-const ErrorPage = lazy(() => import("./pages/error").then(module => ({ default: module.ErrorFallback })));
+const ErrorPage = lazy(() => import("./pages/error"));
 
 // Lazily load page components
 const Index = lazy(() => import("./pages/Index"));
@@ -48,6 +48,8 @@ const CandidateProfile = lazy(() => import("./pages/candidate/CandidateProfile")
 const CandidateSettings = lazy(() => import("./pages/candidate/CandidateSettings"));
 const CompanyContext = lazy(() => import("./pages/candidate/CompanyContext"));
 const EditApplication = lazy(() => import("./pages/candidate/EditApplication"));
+const ForgotPasswordPage = lazy(() => import("./components/auth/ForgotPassword").then(m => ({ default: () => <m.ForgotPassword onBack={() => window.history.back()} embedded={false} /> })));
+const ChangePassword = lazy(() => import("./pages/candidate/CandidateSettings").then(m => ({ default: m.default })));
 
 // Recruiter pages
 const RecruiterDashboard = lazy(() => import("./pages/recruiter/RecruiterDashboard"));
@@ -99,11 +101,15 @@ const router = createBrowserRouter(
       <Route path="candidate/application/:id" element={<CandidateApplicationTracking />} />
       <Route path="candidate/applications" element={<CandidateApplications />} />
       <Route path="candidate/applications/:id/edit" element={<ProtectedRoute requiredRole="candidat"><EditApplication /></ProtectedRoute>} />
+      <Route path="candidate/applications/draft/:jobOfferId" element={<ProtectedRoute requiredRole="candidat"><ApplyToJob /></ProtectedRoute>} />
+      <Route path="candidate/applications/drafts/:jobOfferId" element={<ProtectedRoute requiredRole="candidat"><ApplyToJob /></ProtectedRoute>} />
       <Route path="candidate/profile" element={<CandidateProfile />} />
       <Route path="candidate/settings" element={<CandidateSettings />} />
       <Route path="company-context" element={<CompanyContext />} />
       <Route path="privacy-policy" element={<PrivacyPolicy />} />
       <Route path="reset-password" element={<ResetPassword />} />
+      <Route path="forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="change-password" element={<ProtectedRoute requiredRole="candidat"><CandidateSettings /></ProtectedRoute>} />
       
       {/* Recruiter Routes */}
       <Route path="recruiter" element={<ProtectedRecruiterReadRoute><RecruiterDashboard /></ProtectedRecruiterReadRoute>} />
@@ -189,7 +195,7 @@ const withMaintenanceCheck = (element: React.ReactNode) => {
 function App() {
   // Composant de secours personnalisé pour ErrorBoundary
   const CustomErrorFallback = (props: FallbackProps) => {
-    return <ErrorFallback error={props.error} onRetry={props.resetErrorBoundary} />;
+    return <ErrorFallback error={props.error} resetErrorBoundary={props.resetErrorBoundary} />;
   };
 
   return (

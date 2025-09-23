@@ -44,7 +44,28 @@ export function useOptimizedProtocol1Evaluation(applicationId: string) {
   const LOCAL_DIRTY_KEY = `protocol1_evaluation_details_${applicationId}_dirty`;
 
   // Fonction pour calculer les scores partiels de chaque section (pondération 10/20/70, sans arrondi côté UI)
-  const calculateSectionScores = useCallback((protocol1: any) => {
+  const calculateSectionScores = useCallback((protocol1: {
+    documentaryEvaluation: {
+      cv: { score: number; comments?: string },
+      lettreMotivation: { score: number; comments?: string },
+      diplomesEtCertificats: { score: number; comments?: string }
+    },
+    mtpAdherence: {
+      metier: { score: number },
+      talent: { score: number },
+      paradigme: { score: number }
+    },
+    interview: {
+      physicalMtpAdherence: {
+        metier: { score: number },
+        talent: { score: number },
+        paradigme: { score: number }
+      },
+      gapCompetence: { score: number },
+      generalSummary?: string
+    },
+    practicalEvaluation?: { miseEnSituation: { score: number }, casPratique: { score: number }, presentation: { score: number } }
+  }) => {
     // 1) Score documentaire: moyenne des 3 documents (sur 5) -> %
     const documentaryScores = [
       protocol1.documentaryEvaluation.cv.score,
@@ -277,7 +298,7 @@ export function useOptimizedProtocol1Evaluation(applicationId: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [applicationId, toast, calculateSectionScores]);
+  }, [applicationId, toast, calculateSectionScores, LOCAL_KEY, LOCAL_MTIME_KEY, LOCAL_DIRTY_KEY]);
 
   // Sauvegarder les données avec invalidation du cache
   const saveEvaluation = useCallback(async (data: EvaluationData) => {
@@ -524,7 +545,7 @@ export function useOptimizedProtocol1Evaluation(applicationId: string) {
     } finally {
       setIsSaving(false);
     }
-  }, [applicationId, user, calculateSectionScores, toast]);
+  }, [applicationId, user, calculateSectionScores, toast, LOCAL_KEY, LOCAL_MTIME_KEY, LOCAL_DIRTY_KEY]);
 
   // Mettre à jour les données avec sauvegarde automatique optimisée
   const updateEvaluation = useCallback((updater: (prev: EvaluationData) => EvaluationData) => {
@@ -568,7 +589,7 @@ export function useOptimizedProtocol1Evaluation(applicationId: string) {
       
       return newData;
     });
-  }, [calculateSectionScores, saveEvaluation]);
+  }, [calculateSectionScores, saveEvaluation, LOCAL_KEY, LOCAL_MTIME_KEY, LOCAL_DIRTY_KEY]);
 
   // Charger les données au montage du composant
   useEffect(() => {
@@ -614,7 +635,7 @@ export function useOptimizedProtocol1Evaluation(applicationId: string) {
     return () => {
       window.removeEventListener('beforeunload', handleImmediatePersist);
     };
-  }, [applicationId, evaluationData, saveEvaluation]);
+  }, [applicationId, evaluationData, saveEvaluation, LOCAL_KEY, LOCAL_MTIME_KEY]);
 
   return {
     evaluationData,

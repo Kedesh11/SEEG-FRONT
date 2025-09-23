@@ -69,7 +69,7 @@ export interface MeResponse {
   role: string;
   first_name?: string;
   last_name?: string;
-  matricule?: string;
+  matricule?: number;
 }
 
 export async function me() {
@@ -115,5 +115,26 @@ export async function adminCreateUser(payload: AdminCreateUserRequest) {
     ROUTES.AUTH.CREATE_USER,
     payload
   );
+  return data;
+}
+
+export interface ForgotPasswordRequest { email: string }
+export interface ForgotPasswordResponse { success: boolean; message?: string }
+export async function forgotPassword(email: string) {
+  const { data } = await api.post<ForgotPasswordResponse>(ROUTES.AUTH.FORGOT_PASSWORD, { email });
+  return data;
+}
+
+export interface ResetPasswordRequest { token: string; new_password: string }
+export interface ResetPasswordResponse { success: boolean; message?: string }
+export async function resetPassword(token: string, newPassword: string) {
+  const { data } = await api.post<ResetPasswordResponse>(ROUTES.AUTH.RESET_PASSWORD, { token, new_password: newPassword });
+  return data;
+}
+
+export interface ChangePasswordRequest { current_password: string; new_password: string }
+export interface ChangePasswordResponse { success: boolean; message?: string }
+export async function changePassword(currentPassword: string, newPassword: string) {
+  const { data } = await api.post<ChangePasswordResponse>(ROUTES.AUTH.CHANGE_PASSWORD, { current_password: currentPassword, new_password: newPassword });
   return data;
 } 

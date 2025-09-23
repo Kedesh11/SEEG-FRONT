@@ -5,20 +5,26 @@ export interface JobDTO {
   id: string | number;
   title?: string;
   description?: string;
-  location?: string | string[];
+  location?: string; // backend: string
   contract_type?: string;
-  requirements?: string | string[] | null;
+  requirements?: string[] | null; // backend: JSON array of strings
+  benefits?: string[] | null; // backend: JSON array of strings
+  responsibilities?: string[] | null; // backend: JSON array of strings
   status?: string;
   created_at?: string;
   updated_at?: string;
   recruiter_id?: string | number;
+  department?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
   categorie_metier?: string | null;
+  application_deadline?: string | null;
   date_limite?: string | null;
   reporting_line?: string | null;
   job_grade?: string | null;
   salary_note?: string | null;
   start_date?: string | null;
-  responsibilities?: string | string[] | null;
+  profile?: string | null;
   candidate_count?: number;
   new_candidates?: number;
 }
@@ -27,20 +33,26 @@ export interface JobOffer {
   id: string;
   title: string;
   description: string;
-  location: string | string[];
+  location: string; // backend: string
   contract_type: string;
-  requirements?: string | string[] | null;
+  requirements?: string[] | null;
+  benefits?: string[] | null;
+  responsibilities?: string[] | null;
   status: string;
   created_at: string;
   updated_at: string;
   recruiter_id: string;
+  department?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
   categorie_metier?: string | null;
+  application_deadline?: string | null;
   date_limite?: string | null;
   reporting_line?: string | null;
   job_grade?: string | null;
   salary_note?: string | null;
   start_date?: string | null;
-  responsibilities?: string | string[] | null;
+  profile?: string | null;
   candidate_count: number;
   new_candidates: number;
 }
@@ -50,20 +62,26 @@ function mapJob(dto: JobDTO): JobOffer {
     id: String(dto.id),
     title: String(dto.title ?? ""),
     description: String(dto.description ?? ""),
-    location: (dto.location ?? "") as string | string[],
+    location: String(dto.location ?? ""),
     contract_type: String(dto.contract_type ?? ""),
-    requirements: (dto.requirements ?? null) as string | string[] | null,
+    requirements: (dto.requirements ?? null) as string[] | null,
+    benefits: (dto.benefits ?? null) as string[] | null,
+    responsibilities: (dto.responsibilities ?? null) as string[] | null,
     status: String(dto.status ?? "active"),
     created_at: String(dto.created_at ?? new Date().toISOString()),
     updated_at: String(dto.updated_at ?? new Date().toISOString()),
     recruiter_id: String(dto.recruiter_id ?? ""),
+    department: dto.department ?? null,
+    salary_min: dto.salary_min ?? null,
+    salary_max: dto.salary_max ?? null,
     categorie_metier: dto.categorie_metier ?? null,
+    application_deadline: dto.application_deadline ?? null,
     date_limite: dto.date_limite ?? null,
     reporting_line: dto.reporting_line ?? null,
     job_grade: dto.job_grade ?? null,
     salary_note: dto.salary_note ?? null,
     start_date: dto.start_date ?? null,
-    responsibilities: (dto.responsibilities ?? null) as string | string[] | null,
+    profile: dto.profile ?? null,
     candidate_count: Number(dto.candidate_count ?? 0),
     new_candidates: Number(dto.new_candidates ?? 0),
   };

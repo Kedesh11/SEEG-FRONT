@@ -30,27 +30,27 @@ export interface ApplicationUpdatePayload {
 
 export interface Application {
   id: string;
-  jobOfferId?: string;
-  candidateId?: string;
-  status?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  referenceContacts?: string | null;
-  availabilityStart?: string | null;
-  mtpAnswers?: Record<string, unknown> | null;
+  job_offer_id?: string;
+  candidate_id?: string;
+  status?: string; // backend: generic string (ex: pending)
+  created_at?: string;
+  updated_at?: string;
+  reference_contacts?: string | null;
+  availability_start?: string | null;
+  mtp_answers?: Record<string, unknown> | null;
 }
 
 function mapApplication(dto: ApplicationDTO): Application {
   return {
     id: String(dto.id),
-    jobOfferId: dto.job_offer_id !== undefined ? String(dto.job_offer_id) : undefined,
-    candidateId: dto.candidate_id !== undefined ? String(dto.candidate_id) : undefined,
+    job_offer_id: dto.job_offer_id !== undefined ? String(dto.job_offer_id) : undefined,
+    candidate_id: dto.candidate_id !== undefined ? String(dto.candidate_id) : undefined,
     status: dto.status,
-    createdAt: dto.created_at,
-    updatedAt: dto.updated_at,
-    referenceContacts: dto.reference_contacts ?? null,
-    availabilityStart: dto.availability_start ?? null,
-    mtpAnswers: (dto.mtp_answers ?? null) as Record<string, unknown> | null,
+    created_at: dto.created_at,
+    updated_at: dto.updated_at,
+    reference_contacts: dto.reference_contacts ?? null,
+    availability_start: dto.availability_start ?? null,
+    mtp_answers: (dto.mtp_answers ?? null) as Record<string, unknown> | null,
   };
 }
 

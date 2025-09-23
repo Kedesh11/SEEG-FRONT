@@ -4,7 +4,7 @@ import { AlertTriangle, Home, RefreshCw } from "lucide-react";
 
 import type { FallbackProps } from 'react-error-boundary';
 
-type ErrorBoundaryProps = FallbackProps & {
+type ErrorBoundaryProps = {
   error?: Error;
   resetErrorBoundary?: () => void;
 };
@@ -36,7 +36,7 @@ export function ErrorPage({ error, resetErrorBoundary }: ErrorBoundaryProps) {
               Recharger la page
             </Button>
           )}
-          <Button variant="outline" onClick={() => navigate('/')}>
+          <Button variant="outline" onClick={() => navigate('/') }>
             <Home className="mr-2 h-4 w-4" />
             Page d'accueil
           </Button>

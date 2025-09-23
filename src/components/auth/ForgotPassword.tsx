@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Mail, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { forgotPassword as apiForgotPassword } from "@/integrations/api/auth";
 
 interface ForgotPasswordProps {
   onBack: () => void;
@@ -68,9 +69,9 @@ export function ForgotPassword({ onBack, embedded = true }: ForgotPasswordProps)
 
     setIsLoading(true);
     try {
-      // En attente de l'endpoint backend de réinitialisation
+      await apiForgotPassword(email.trim());
       setIsEmailSent(true);
-      toast.info("La réinitialisation de mot de passe sera bientôt disponible.");
+      toast.success("Si l'adresse existe, un email a été envoyé.");
       setCooldownFor(DEFAULT_COOLDOWN);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue s'est produite";

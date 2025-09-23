@@ -339,8 +339,9 @@ export default function Auth() {
                       variant="link"
                       className="p-0 h-auto font-normal"
                       onClick={() => setShowForgotPassword(true)}
+                      asChild
                     >
-                      Mot de passe oublié ?
+                      <Link to="/forgot-password">Mot de passe oublié ?</Link>
                     </Button>
                   </div>
 

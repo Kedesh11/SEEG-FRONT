@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, type SignUpMetadata } from "@/hooks/useAuth";
@@ -13,6 +12,7 @@ import { Mail, User, KeyRound, Eye, EyeOff, Briefcase, Calendar, MapPin } from "
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { FullPageSpinner } from "@/components/ui/spinner";
+import { changePassword } from "@/integrations/api/auth";
 
 export default function CandidateSettings() {
   const { user, isLoading } = useAuth();
@@ -178,8 +178,8 @@ export default function CandidateSettings() {
     }
     try {
       setChangingPwd(true);
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
+      // Remplace l'appel Supabase par l'API backend
+      await changePassword(newPassword, newPassword);
       setNewPassword("");
       setConfirmPassword("");
       toast({ title: "Mot de passe modifié", description: "Votre mot de passe a été mis à jour." });

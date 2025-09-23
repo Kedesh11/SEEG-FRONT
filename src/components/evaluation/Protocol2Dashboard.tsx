@@ -137,19 +137,19 @@ export function Protocol2Dashboard({ candidateName, jobTitle, applicationId, onS
 
       if (section === 'mise_en_situation') {
         if (!newData.mise_en_situation[category as keyof typeof newData.mise_en_situation]) {
-          newData.mise_en_situation[category as keyof typeof newData.mise_en_situation] = { score: 0, comments: '' } as any;
+          newData.mise_en_situation[category as keyof typeof newData.mise_en_situation] = { score: 0, comments: '' } as { score: number; comments: string };
         }
-        newData.mise_en_situation[category as keyof typeof newData.mise_en_situation][subCategory] = value;
+        (newData.mise_en_situation[category as keyof typeof newData.mise_en_situation] as { [key: string]: string | number })[subCategory] = value;
       } else if (section === 'validation_operationnelle') {
         if (!newData.validation_operationnelle[category as keyof typeof newData.validation_operationnelle]) {
-          newData.validation_operationnelle[category as keyof typeof newData.validation_operationnelle] = { score: 0, comments: '' } as any;
+          newData.validation_operationnelle[category as keyof typeof newData.validation_operationnelle] = { score: 0, comments: '' } as { score: number; comments: string };
         }
-        newData.validation_operationnelle[category as keyof typeof newData.validation_operationnelle][subCategory] = value;
+        (newData.validation_operationnelle[category as keyof typeof newData.validation_operationnelle] as { [key: string]: string | number })[subCategory] = value;
       } else if (section === 'analyse_competences') {
         if (!newData.analyse_competences[category as keyof typeof newData.analyse_competences]) {
-          newData.analyse_competences[category as keyof typeof newData.analyse_competences] = { score: 0, comments: '', gapLevel: '' } as any;
+          newData.analyse_competences[category as keyof typeof newData.analyse_competences] = { score: 0, comments: '', gapLevel: '' } as { score: number; comments: string; gapLevel: string };
         }
-        newData.analyse_competences[category as keyof typeof newData.analyse_competences][subCategory] = value;
+        (newData.analyse_competences[category as keyof typeof newData.analyse_competences] as { [key: string]: string | number })[subCategory] = value;
       }
 
       // Mettre à jour le statut basé sur les scores

@@ -85,15 +85,14 @@ export interface Application {
 function mapBeToUi(app: BeApplication): Application {
   return {
     id: app.id,
-    // backend returns jobOfferId/candidateId camelCase; map to snake_case fields used by UI
-    job_offer_id: app.jobOfferId,
-    candidate_id: app.candidateId,
-    status: (app.status as Application['status']) ?? 'candidature',
-    created_at: app.createdAt,
-    updated_at: app.updatedAt,
-    reference_contacts: app.referenceContacts ?? null,
-    availability_start: app.availabilityStart ?? null,
-    mtp_answers: (app.mtpAnswers as any) ?? null,
+    job_offer_id: (app as any).job_offer_id ?? (app as any).jobOfferId,
+    candidate_id: (app as any).candidate_id ?? (app as any).candidateId,
+    status: (app as any).status,
+    created_at: (app as any).created_at ?? (app as any).createdAt,
+    updated_at: (app as any).updated_at ?? (app as any).updatedAt,
+    reference_contacts: (app as any).reference_contacts ?? (app as any).referenceContacts ?? null,
+    availability_start: (app as any).availability_start ?? (app as any).availabilityStart ?? null,
+    mtp_answers: ((app as any).mtp_answers ?? (app as any).mtpAnswers ?? null) as any,
   };
 }
 

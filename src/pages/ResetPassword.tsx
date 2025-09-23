@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Lock, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { resetPassword as apiResetPassword } from "@/integrations/api/auth";
 
 export function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -40,10 +41,17 @@ export function ResetPassword() {
 
     setIsLoading(true);
     try {
-      // En attente de l’implémentation backend
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("token");
+      if (!token) {
+        toast.error("Lien invalide: token manquant");
+        setIsLoading(false);
+        return;
+      }
+      await apiResetPassword(token, password);
       setIsSuccess(true);
-      toast.info("La réinitialisation via l’API sera bientôt disponible.");
-      setTimeout(() => navigate('/auth'), 2500);
+      toast.success("Mot de passe réinitialisé. Redirection...");
+      setTimeout(() => navigate('/auth'), 1500);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Une erreur inconnue s'est produite";
       toast.error("Une erreur s'est produite: " + errorMessage);

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Editor } from "@/components/ui/editor";
+import { RichTextEditor } from "@/components/ui/editor";
 import { CheckCircle, Clock, AlertCircle, FileText, BarChart3, TrendingUp, Star, Download } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -249,7 +249,7 @@ export function SynthesisDashboard({
           <div className="space-y-6">
               <div>
                 <h6 className="font-medium text-green-600 mb-2">Points forts :</h6>
-              <Editor
+              <RichTextEditor
                 value={synthesisData.pointsForts}
                 onChange={(value) => onUpdate?.({ pointsForts: value })}
                 placeholder="Listez les points forts du candidat..."
@@ -259,7 +259,7 @@ export function SynthesisDashboard({
               
               <div>
                 <h6 className="font-medium text-orange-600 mb-2">Points d'amélioration :</h6>
-              <Editor
+              <RichTextEditor
                 value={synthesisData.pointsAmelioration}
                 onChange={(value) => onUpdate?.({ pointsAmelioration: value })}
                 placeholder="Listez les points d'amélioration..."
@@ -269,7 +269,7 @@ export function SynthesisDashboard({
             
             <div>
               <h6 className="font-medium text-blue-600 mb-2">Conclusion :</h6>
-              <Editor
+              <RichTextEditor
                 value={synthesisData.conclusion || ''}
                 onChange={(value) => onUpdate?.({ conclusion: value })}
                 placeholder="Rédigez la conclusion de l'évaluation..."

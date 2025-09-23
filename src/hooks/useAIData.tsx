@@ -568,7 +568,7 @@ export function useAIData() {
             const candidateData = value as Record<string, unknown>;
 
             // Fonction utilitaire pour extraire des données de manière sécurisée
-            const safeExtract = (obj: Record<string, unknown>, path: string[], defaultValue: any = null) => {
+            const safeExtract = (obj: Record<string, unknown>, path: string[], defaultValue: unknown = null): unknown => {
               let current = obj;
               for (const key of path) {
                 if (current && typeof current === 'object' && key in current) {

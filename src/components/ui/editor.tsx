@@ -1,4 +1,4 @@
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Toggle } from "@/components/ui/toggle";
 import {
@@ -18,7 +18,7 @@ interface EditorProps {
   disabled?: boolean;
 }
 
-const MenuBar = ({ editor }: { editor: any }) => {
+const MenuBar = ({ editor }: { editor: Editor | null }) => {
   if (!editor) {
     return null;
   }
@@ -62,15 +62,15 @@ const MenuBar = ({ editor }: { editor: any }) => {
       </Toggle>
       <Toggle
         size="sm"
+        pressed={editor.can().chain().focus().undo().run()}
         onPressedChange={() => editor.chain().focus().undo().run()}
-        disabled={!editor.can().undo()}
       >
         <Undo className="h-4 w-4" />
       </Toggle>
       <Toggle
         size="sm"
+        pressed={editor.can().chain().focus().redo().run()}
         onPressedChange={() => editor.chain().focus().redo().run()}
-        disabled={!editor.can().redo()}
       >
         <Redo className="h-4 w-4" />
       </Toggle>
@@ -78,45 +78,25 @@ const MenuBar = ({ editor }: { editor: any }) => {
   );
 };
 
-export function Editor({ value, onChange, placeholder, disabled }: EditorProps) {
+export function RichTextEditor({ value, onChange, placeholder, disabled }: EditorProps) {
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        bulletList: {
-          HTMLAttributes: {
-            class: 'list-disc list-inside',
-          },
-        },
-        orderedList: {
-          HTMLAttributes: {
-            class: 'list-decimal list-inside',
-          },
-        },
-        heading: {
-          HTMLAttributes: {
-            class: 'text-lg font-bold my-2',
-          },
-        },
-      }),
-    ],
+    extensions: [StarterKit],
     content: value,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
-    editable: !disabled,
     editorProps: {
       attributes: {
-        class: 'min-h-[150px] w-full rounded-b-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>ul]:ml-4 [&>ul]:space-y-1 [&>ol]:ml-4 [&>ol]:space-y-1 [&>ul>li]:pl-1 [&>ol>li]:pl-1',
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl focus:outline-none min-h-[120px] p-2',
       },
     },
+    editable: !disabled,
   });
 
   return (
-    <div className="w-full">
+    <div className="border rounded-md">
       <MenuBar editor={editor} />
-      <div className="prose prose-sm max-w-none">
-        <EditorContent editor={editor} placeholder={placeholder} />
-      </div>
+      <EditorContent editor={editor} />
     </div>
   );
 }

@@ -13,6 +13,9 @@ export const ROUTES = {
     SIGNUP: `${API_BASE}/auth/signup` as const,
     VERIFY_MATRICULE: `${API_BASE}/auth/verify-matricule` as const,
     CREATE_USER: `${API_BASE}/auth/create-user` as const,
+    FORGOT_PASSWORD: `${API_BASE}/auth/forgot-password` as const,
+    RESET_PASSWORD: `${API_BASE}/auth/reset-password` as const,
+    CHANGE_PASSWORD: `${API_BASE}/auth/change-password` as const,
   },
   USERS: {
     BASE: `${API_BASE}/users` as const,
