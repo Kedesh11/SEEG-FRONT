@@ -14,7 +14,7 @@ export interface ApiOptions {
 function getApiBaseUrl(): string {
   // Support Vite envs: VITE_API_BASE_URL without trailing slash
   const raw = (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_API_BASE_URL as string | undefined;
-  const fallback = "http://localhost:8001"; // dev default
+  const fallback = "https://seeg-backend-api.azurewebsites.net"; // prod default
   const base = (raw && typeof raw === "string" ? raw : fallback).replace(/\/$/, "");
   return base;
 }

@@ -268,7 +268,7 @@ export default function JobDetail() {
                           </Badge>
                         </div>
                         <p className="text-xs sm:text-sm text-green-700 mt-2">
-                          Candidature envoyée le {new Date(applicationStatus.created_at).toLocaleDateString('fr-FR')}
+                          Candidature enregistrée.
                         </p>
                       </div>
                       <Button 
@@ -282,18 +282,14 @@ export default function JobDetail() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <button 
-                        onClick={(e) => e.preventDefault()}
-                        className="w-full text-sm sm:text-base cursor-not-allowed border border-input bg-background hover:bg-accent hover:text-accent-foreground h-11 rounded-md px-8 inline-flex items-center justify-center whitespace-nowrap font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-                        disabled
-                        title="Les candidatures sont désormais closes"
+                      <Button 
+                        variant="default"
+                        className="w-full text-sm sm:text-base h-11"
+                        size="lg"
+                        onClick={handleApply}
                       >
-                        Candidatures closes
-                      </button>
-                      
-                      <p className="text-xs text-muted-foreground text-center leading-relaxed">
-                        La période de candidature est terminée
-                      </p>
+                        Postuler maintenant
+                      </Button>
                     </div>
                   )}
                 </CardContent>

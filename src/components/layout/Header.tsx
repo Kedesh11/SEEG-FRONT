@@ -250,30 +250,17 @@ export function Header() {
                     <span className="sm:hidden">Connexion</span>
                   </Button>
                 </Link>
-                <div
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (preLaunch) {
-                      preLaunchToast();
-                    } else if (applicationsClosed) {
-                      toast.info("Les inscriptions sont désormais closes.");
-                    }
-                  }}
-                  className="pointer-events-auto"
-                  title={applicationsClosed ? "Les inscriptions sont closes" : preLaunch ? "Inscriptions indisponibles jusqu'au 25 août 2025" : undefined}
-                >
+                <Link to="/auth">
                   <Button
                     variant="default"
                     size="sm"
-                    className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 opacity-50 cursor-not-allowed pointer-events-none"
-                    disabled={true}
+                    className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3"
                   >
                     <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">S'inscrire</span>
                     <span className="sm:hidden">Inscription</span>
                   </Button>
-                </div>
+                </Link>
               </>
             )}
           </nav>

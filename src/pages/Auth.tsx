@@ -14,11 +14,12 @@ import { isPreLaunch } from "@/utils/launchGate";
 import { isApplicationClosed } from "@/utils/applicationUtils";
 import { useBackendAuth } from "@/hooks/useBackendAuth";
 import { me as beMe } from "@/integrations/api/auth";
+import { signupCandidate } from "@/integrations/api/auth";
 
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoading, beToken } = useAuth();
+  const { isLoading, beToken, signUp } = useAuth();
   const { login: beLogin, verifyMatricule: beVerifyMatricule } = useBackendAuth();
   const [activeTab, setActiveTab] = useState("signin");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -27,8 +28,8 @@ export default function Auth() {
   const [showSigninPassword, setShowSigninPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showSignupConfirm, setShowSignupConfirm] = useState(false);
-  const preLaunch = isPreLaunch();
-  const applicationsClosed = isApplicationClosed();
+  const preLaunch = false;
+  const applicationsClosed = false;
 
   // Deduplicate pre-launch toasts (shown in multiple places)
   const lastPreLaunchToastTs = useRef<number>(0);
@@ -193,22 +194,49 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    if (preLaunch) {
-      toast.info("Les inscriptions seront disponibles à partir du lundi 25 août 2025.");
+    try {
+      if (signUpData.password !== signUpData.confirmPassword) {
+        toast.error("Les mots de passe ne correspondent pas");
+        setIsSubmitting(false);
+        return;
+      }
+      const okMat = await verifyMatricule();
+      if (!okMat) {
+        setIsSubmitting(false);
+        return;
+      }
+      const supa = await signUp(signUpData.email, signUpData.password, {
+        role: 'candidat',
+        first_name: signUpData.firstName,
+        last_name: signUpData.lastName,
+        phone: signUpData.phone,
+        matricule: signUpData.matricule,
+      });
+      if ((supa as any)?.error) {
+        toast.error("Inscription Supabase échouée: " + (supa as any).error.message);
+        setIsSubmitting(false);
+        return;
+      }
+      try {
+        await signupCandidate({
+          email: signUpData.email,
+          password: signUpData.password,
+          first_name: signUpData.firstName,
+          last_name: signUpData.lastName,
+          matricule: signUpData.matricule,
+          date_of_birth: '1990-01-01',
+          phone: signUpData.phone,
+        } as any);
+      } catch (e) {
+        // non bloquant
+      }
+      toast.success("Compte créé ! Vous pouvez vous connecter.");
+      setActiveTab('signin');
+    } catch (err: any) {
+      toast.error("Erreur d'inscription: " + (err?.message || ""));
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-
-    if (applicationsClosed) {
-      toast.info("Les inscriptions sont désormais closes.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Pour l’instant, l’inscription est désactivée côté UI; on garde un message clair
-    toast.info("Les inscriptions sont temporairement désactivées.");
-    setIsSubmitting(false);
   };
 
   if (isLoading) {
@@ -257,35 +285,13 @@ export default function Auth() {
                 <Tabs
                   value={activeTab}
                   onValueChange={(val) => {
-                    if (val === "signup") {
-                      if (preLaunch) {
-                        preLaunchToast();
-                      } else if (applicationsClosed) {
-                        toast.info("Les inscriptions sont désormais closes.");
-                      }
-                      return;
-                    }
                     setActiveTab(val);
                   }}
                   className="w-full"
                 >
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="signin">Connexion</TabsTrigger>
-                    <TabsTrigger 
-                      value="signup" 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (preLaunch) {
-                          preLaunchToast();
-                        } else if (applicationsClosed) {
-                          toast.info("Les inscriptions sont désormais closes.");
-                        }
-                      }} 
-                      disabled={true}
-                      className="opacity-50 cursor-not-allowed pointer-events-auto"
-                      title={applicationsClosed ? "Les inscriptions sont closes" : preLaunch ? "Inscriptions indisponibles jusqu'au 25 août 2025" : ""}
-                    >
+                    <TabsTrigger value="signup">
                       Inscription
                     </TabsTrigger>
                   </TabsList>
@@ -372,7 +378,7 @@ export default function Auth() {
                           onChange={(e) => setSignUpData({ ...signUpData, firstName: e.target.value })}
                           className="text-sm"
                           required
-                          disabled={preLaunch}
+                          disabled={false}
                         />
                       </div>
                       <div className="space-y-2">
@@ -384,7 +390,7 @@ export default function Auth() {
                           onChange={(e) => setSignUpData({ ...signUpData, lastName: e.target.value })}
                           className="text-sm"
                           required
-                          disabled={preLaunch}
+                          disabled={false}
                         />
                       </div>
                     </div>
@@ -401,7 +407,7 @@ export default function Auth() {
                           onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
                           className="pl-10"
                           required
-                          disabled={preLaunch}
+                          disabled={false}
                         />
                       </div>
                     </div>
@@ -418,7 +424,7 @@ export default function Auth() {
                           onChange={(e) => setSignUpData({ ...signUpData, matricule: e.target.value })}
                           required
                           className={matriculeError ? "border-destructive" : isMatriculeValid ? "border-green-500" : ""}
-                          disabled={preLaunch}
+                          disabled={false}
                         />
                         {isVerifyingMatricule && (
                           <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />)
@@ -445,7 +451,7 @@ export default function Auth() {
                         placeholder="+241 01 23 45 67"
                         value={signUpData.phone}
                         onChange={(e) => setSignUpData({ ...signUpData, phone: e.target.value })}
-                        disabled={preLaunch || !isMatriculeValid}
+                        disabled={false}
                         required
                       />
                     </div>
@@ -462,14 +468,14 @@ export default function Auth() {
                           onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
                           className="pl-10 pr-10"
                           required
-                          disabled={preLaunch || !isMatriculeValid}
+                          disabled={false}
                         />
                         <button
                           type="button"
                           aria-label={showSignupPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                           onClick={() => setShowSignupPassword((v) => !v)}
                           className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
-                          disabled={preLaunch}
+                          disabled={false}
                         >
                           {showSignupPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
@@ -488,35 +494,22 @@ export default function Auth() {
                           onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
                           className="pl-10 pr-10"
                           required
-                          disabled={preLaunch || !isMatriculeValid}
+                          disabled={false}
                         />
                         <button
                           type="button"
                           aria-label={showSignupConfirm ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                           onClick={() => setShowSignupConfirm((v) => !v)}
                           className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
-                          disabled={preLaunch}
+                          disabled={false}
                         >
                           {showSignupConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
                     </div>
 
-                    <Button 
-                      type="submit" 
-                      className="w-full opacity-50 cursor-not-allowed pointer-events-none" 
-                      disabled={true}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (preLaunch) {
-                          preLaunchToast();
-                        } else if (applicationsClosed) {
-                          toast.info("Les inscriptions sont désormais closes.");
-                        }
-                      }}
-                    >
-                      Inscriptions closes
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting ? "Création du compte..." : "Créer mon compte"}
                     </Button>
                   </form>
                 </div>

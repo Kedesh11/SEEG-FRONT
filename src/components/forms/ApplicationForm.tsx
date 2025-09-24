@@ -82,9 +82,9 @@ interface FormData {
 
 export function ApplicationForm({ jobTitle, jobId, onBack, onSubmit, applicationId, mode = 'create', initialStep }: ApplicationFormProps) {
   const navigate = useNavigate();
-  const preLaunch = isPreLaunch();
-  const applicationsClosed = isApplicationClosed();
-  const preLaunchToast = () => toast.info("Les candidatures seront disponibles à partir du lundi 25 août 2025.");
+  const preLaunch = false;
+  const applicationsClosed = false;
+  const preLaunchToast = () => {};
   
   // Hook pour gérer les brouillons (seulement en mode création)
   const {
@@ -704,12 +704,8 @@ export function ApplicationForm({ jobTitle, jobId, onBack, onSubmit, application
     if (preLaunch) {
       preLaunchToast();
       return;
-    } else if (applicationsClosed) {
-      toast.info("Les candidatures sont désormais closes.");
-      return;
     }
-    // Candidatures désactivées - aucune soumission possible
-    return;
+    setIsSubmitting(true);
     setIsSubmitting(true);
     try {
       const isCreateMode = mode === 'create';
