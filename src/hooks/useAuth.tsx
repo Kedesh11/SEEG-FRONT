@@ -478,10 +478,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const roleValue = getUserRole();
-  const isCandidate = roleValue === 'candidat' || roleValue === 'candidate';
-  const isRecruiter = roleValue === 'recruteur' || roleValue === 'recruiter';
-  const isAdmin = roleValue === 'admin';
-  const isObserver = roleValue === 'observateur' || roleValue === 'observer';
+  const roleNormalized = String(roleValue || '').toLowerCase();
+  const isCandidate = roleNormalized === 'candidat' || roleNormalized === 'candidate';
+  const isRecruiter = roleNormalized === 'recruteur' || roleNormalized === 'recruiter';
+  const isAdmin = roleNormalized === 'admin';
+  const isObserver = roleNormalized === 'observateur' || roleNormalized === 'observer';
 
   const value = {
     user,

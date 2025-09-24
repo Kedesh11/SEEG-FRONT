@@ -214,9 +214,9 @@ export default function Auth() {
       });
       if ((supa as any)?.error) {
         toast.error("Inscription Supabase échouée: " + (supa as any).error.message);
-        setIsSubmitting(false);
-        return;
-      }
+      setIsSubmitting(false);
+      return;
+    }
       try {
         await signupCandidate({
           email: signUpData.email,
