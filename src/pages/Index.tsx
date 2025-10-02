@@ -17,9 +17,8 @@ import { isPreLaunch } from "@/utils/launchGate";
 import { isApplicationClosed } from "@/utils/applicationUtils";
 import { toast } from "sonner";
 import { useMaintenance } from "@/hooks/useMaintenance";
-import { supabase } from "@/integrations/supabase/client";
 
-// Les offres sont désormais chargées dynamiquement depuis Supabase
+// Les offres sont désormais chargées dynamiquement depuis l'API Backend
 
 const Index = () => {
   const navigate = useNavigate();

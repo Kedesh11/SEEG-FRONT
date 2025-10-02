@@ -36,4 +36,22 @@ export async function markAllAsRead() {
 export async function getUnreadCount() {
   const { data } = await api.get<{ count?: number }>(`${BASE}/stats/unread-count`);
   return (data?.count ?? 0) as number;
+}
+
+// GET stats/overview - Statistiques globales des notifications
+export interface NotificationStatsDTO {
+  total_notifications: number;
+  unread_count: number;
+  read_count: number;
+  notifications_by_type?: Record<string, number>;
+  recent_notifications?: number;
+}
+
+export async function getNotificationStats(): Promise<NotificationStatsDTO | null> {
+  try {
+    const { data } = await api.get<NotificationStatsDTO>(`${BASE}/stats/overview`);
+    return data as NotificationStatsDTO;
+  } catch {
+    return null;
+  }
 } 

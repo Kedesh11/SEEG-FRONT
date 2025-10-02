@@ -137,4 +137,47 @@ export interface ChangePasswordResponse { success: boolean; message?: string }
 export async function changePassword(currentPassword: string, newPassword: string) {
   const { data } = await api.post<ChangePasswordResponse>(ROUTES.AUTH.CHANGE_PASSWORD, { current_password: currentPassword, new_password: newPassword });
   return data;
+}
+
+// Refresh token (pour renouveler le token JWT)
+export interface RefreshTokenRequest { refresh_token?: string }
+export interface RefreshTokenResponse { access_token: string; token_type: string }
+export async function refreshToken(refreshToken?: string) {
+  const { data } = await api.post<RefreshTokenResponse>(`${ROUTES.AUTH.BASE}/refresh`, { refresh_token: refreshToken });
+  if (data && (data as RefreshTokenResponse).access_token) {
+    saveAccessToken((data as RefreshTokenResponse).access_token);
+  }
+  return data;
+}
+
+// Logout (déconnexion côté serveur)
+export interface LogoutResponse { success: boolean; message?: string }
+export async function logout() {
+  try {
+    const { data } = await api.post<LogoutResponse>(`${ROUTES.AUTH.BASE}/logout`);
+    clearAccessToken();
+    return data;
+  } catch {
+    // En cas d'erreur, on clear quand même le token local
+    clearAccessToken();
+    return { success: true, message: "Déconnexion locale réussie" };
+  }
+}
+
+// Create first admin (setup initial du système)
+export interface CreateFirstAdminRequest {
+  email: string;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+}
+export interface CreateFirstAdminResponse {
+  id: string | number;
+  email: string;
+  role: string;
+  message?: string;
+}
+export async function createFirstAdmin(payload: CreateFirstAdminRequest) {
+  const { data } = await api.post<CreateFirstAdminResponse>(`${ROUTES.AUTH.BASE}/create-first-admin`, payload);
+  return data;
 } 

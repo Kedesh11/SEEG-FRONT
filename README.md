@@ -1,186 +1,113 @@
-## Envoi d'emails d'entretien (SMTP Nodemailer)
+# 📚 Documentation SEEG Frontend
 
-Une route serverless a été ajoutée: `/api/send-interview-email`.
+Ce dossier contient toute la documentation technique du projet SEEG Frontend.
 
-Variables d'environnement requises (placez-les dans `.env.local` et sur l'hébergement):
+## 📁 Organisation
 
-```
-VITE_SMTP_HOST=smtp.gmail.com
-VITE_SMTP_PORT=587
-VITE_SMTP_SECURE=false
-VITE_SMTP_USER=support@seeg-talentsource.com
-VITE_SMTP_PASSWORD=njev urja zsbc spfn
-VITE_SMTP_FROM="One HCM - SEEG Talent Source <support@seeg-talentsource.com>"
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
-```
+### 🔄 Migration & Intégration
+Documentation relative à la migration de Supabase vers l'API Backend et l'intégration complète.
 
-Le HTML de l'email utilise une police de type serif (style inline) comme demandé.
+- **MIGRATION_FINALE_RESUME.md** - Résumé complet de la migration
+- **MIGRATION_COMPLETE_FINAL.md** - État final de la migration
+- **MIGRATION_STATUS.md** - Statut de migration par composant
+- **MIGRATION_BACKEND_ONLY.md** - Migration vers Backend uniquement
+- **INTEGRATION_BACKEND.md** - Intégration avec l'API Backend
+- **INTEGRATION_COMPLETE.md** - Documentation d'intégration complète
+- **REFONTE_COMPLETE_BACKEND.md** - Refonte architecture Backend
 
-# Welcome to your Lovable project
+### 🔌 API & Endpoints
+Documentation sur l'implémentation et l'utilisation des endpoints API.
 
-## Project info
+- **AUDIT_API_ENDPOINTS.md** - Audit complet des endpoints API
+- **ENDPOINTS_IMPLEMENTATION_COMPLETE.md** - Implémentation des endpoints
+- **BACKEND_API_COMPLETE.md** - Documentation API Backend
+- **OPTIMISATION_RECRUITER_DASHBOARD.md** - Optimisation du dashboard recruteur
 
-**URL**: https://lovable.dev/projects/b784f566-80bf-4316-a0eb-0a2d3b53c3eb
+### ✅ Tests & Build
+Documentation des tests et du processus de build.
 
-## How can I edit this code?
+- **BUILD_FINAL_STATUS.md** - État final du build
+- **TESTS_RESULTS.md** - Résultats des tests
+- **TEST_CONNECTION.md** - Tests de connexion API
 
-There are several ways of editing your application.
+### ⚙️ Configuration & Fonctionnalités
+Documentation des fonctionnalités et configurations spécifiques.
 
-**Use Lovable**
+- **DISABLE_REGISTRATION_APPLICATION.md** - Désactivation de l'inscription
+- **INTERVIEW_SCHEDULING_IMPROVEMENTS.md** - Améliorations planification entretiens
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b784f566-80bf-4316-a0eb-0a2d3b53c3eb) and start prompting.
+### 📝 Fichiers de statut
+Fichiers texte de validation et checkpoints.
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/b784f566-80bf-4316-a0eb-0a2d3b53c3eb) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- **MIGRATION_100_COMPLETE.txt** - Migration 100% complète
+- **MIGRATION_FINALE_STATUS.txt** - Statut final migration
+- **MIGRATION_REUSSIE.txt** - Confirmation migration réussie
 
 ---
 
-# SEEG HCM – Guide du projet
+## 🚀 Quick Start
 
-Ce projet est une application de recrutement SEEG (HCM) construite avec React + Vite + TypeScript + Tailwind + shadcn-ui, et Supabase pour l’authentification et la base de données.
+### Migration Supabase → API Backend
 
-## Sommaire
-- Présentation rapide
-- Prérequis
-- Installation & démarrage
-- Variables d’environnement
-- Scripts disponibles
-- Configuration Supabase (remote = source de vérité)
-- Vérification du matricule (RPC) – flux d’inscription
-- Déploiement des changements Supabase (SQL direct)
-- Dépannage
+La migration vers l'API Backend est **100% complète**. Pour comprendre le processus :
 
-## Présentation rapide
-- Frontend dans `src/`
-- Authentification par Supabase (email/password)
-- Inscription côté UI: tous les champs requis. La suite du formulaire est déverrouillée uniquement si le matricule est validé côté serveur.
-- Vérification matricule: se fait uniquement sur la colonne `matricule` (type BIGINT) via une RPC sécurisée `verify_matricule(p_matricule TEXT)`.
+1. Lire `MIGRATION_FINALE_RESUME.md` pour un aperçu complet
+2. Consulter `OPTIMISATION_RECRUITER_DASHBOARD.md` pour l'optimisation des dashboards
+3. Voir `AUDIT_API_ENDPOINTS.md` pour tous les endpoints disponibles
 
-## Prérequis
-- Node.js 18+
-- npm ou bun (le projet fournit `package-lock.json` → npm recommandé)
-- Accès à un projet Supabase (en ligne)
+### Endpoints API
 
-## Installation & démarrage
-```bash
-npm install
-cp .env.example .env
-# Renseigner VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY dans .env
-npm run dev
+Tous les endpoints API sont implémentés et documentés dans :
+- `ENDPOINTS_IMPLEMENTATION_COMPLETE.md`
+- `AUDIT_API_ENDPOINTS.md`
+
+Routes principales :
+- **Auth** : `/api/v1/auth/*`
+- **Users** : `/api/v1/users/*`
+- **Jobs** : `/api/v1/jobs/*`
+- **Applications** : `/api/v1/applications/*`
+- **Evaluations** : `/api/v1/evaluations/*`
+- **Interviews** : `/api/v1/interviews/*`
+- **Notifications** : `/api/v1/notifications/*`
+- **Optimized** : `/api/v1/optimized/*`
+
+### Architecture
+
+```
+Frontend (React + TypeScript + Vite)
+    ↓
+src/integrations/api/
+    ↓
+API Backend (Azure)
+    ↓
+https://seeg-backend-api.azurewebsites.net
 ```
 
-## Variables d’environnement
-Fichier: `.env`
-- `VITE_SUPABASE_URL` (ex: `https://fyiitzndlqcnyluwkpqp.supabase.co`)
-- `VITE_SUPABASE_ANON_KEY` (clé anonyme du projet Supabase)
+---
 
-Ne commitez pas des secrets sensibles. `.env` est déjà ignoré par Git.
+## 📊 État du Projet
 
-## Scripts disponibles
-- `npm run dev`: lance le serveur de dev Vite
-- `npm run build`: build production
-- `npm run preview`: prévisualisation du build
-- `npm run lint`: lint
+- ✅ Migration Supabase → API Backend : **100% complète**
+- ✅ Tous les endpoints API : **Implémentés**
+- ✅ Dashboard Recruteur : **Optimisé**
+- ✅ Tests : **Passés**
+- ✅ Build : **Réussi**
+- ✅ Authentification JWT : **Fonctionnelle**
+- ✅ Gestion des rôles : **Implémentée**
+- ✅ Protection des routes : **Active**
 
-## Configuration Supabase (remote = source de vérité)
-- Nous utilisons Supabase en ligne comme source de vérité du schéma.
-- Les migrations locales existent mais, pour éviter les divergences, nous appliquons les changements critiques via requêtes SQL directes sur le remote (voir plus bas).
+---
 
-## Vérification du matricule (RPC) – flux d’inscription
-- Fichier front: `src/pages/Auth.tsx`
-  - Fonction `verifyMatricule()` appelle `supabase.rpc('verify_matricule', { p_matricule })`.
-  - Déclenchement automatique (debounce 500 ms) à la saisie du matricule.
-  - Spinner d’attente (`Loader2`) et Card d’erreur en cas d’échec.
-  - Tous les champs d’inscription sont requis; les champs après "Matricule" restent désactivés tant que la vérification n’est pas OK.
-- RPC côté base: `public.verify_matricule(p_matricule TEXT) RETURNS boolean SECURITY DEFINER`
-  - Implémentation compatible avec `seeg_agents.matricule` de type BIGINT.
-  - Cast interne: `(p_matricule)::BIGINT`. Retourne `false` si la valeur n’est pas convertible.
-  - Droits: `GRANT EXECUTE ON FUNCTION public.verify_matricule(TEXT) TO anon;`
-- SQL de référence dans le repo: `supabase/migrations/20250821174400_verify_matricule_cast_bigint.sql`
+## 🔗 Liens Utiles
 
-## Déploiement des changements Supabase (SQL direct)
-Si vous ne gérez pas la DB locale et souhaitez appliquer uniquement la RPC côté remote:
-1. Liez le projet au CLI (si vous avez un access token):
-   ```bash
-   supabase login   # si nécessaire
-   supabase link --project-ref fyiitzndlqcnyluwkpqp
-   ```
-2. Exécutez uniquement le SQL RPC (sans pousser tout l’historique):
-   ```bash
-   supabase db query supabase/migrations/20250821174400_verify_matricule_cast_bigint.sql
-   ```
-3. Test rapide de la RPC:
-   ```bash
-   curl -s -X POST \
-     'https://fyiitzndlqcnyluwkpqp.supabase.co/rest/v1/rpc/verify_matricule' \
-     -H 'apikey: <VITE_SUPABASE_ANON_KEY>' \
-     -H 'Content-Type: application/json' \
-     -d '{"p_matricule": "4517"}'
-   ```
+- **README Principal** : `../README.md`
+- **API Backend** : https://seeg-backend-api.azurewebsites.net
+- **Documentation API** : https://seeg-backend-api.azurewebsites.net/docs
 
-## Dépannage
-- Erreur "Remote migration versions not found": utilisez `supabase db pull` pour aligner le schéma local, ou `supabase db query <fichier.sql>` pour appliquer uniquement la RPC.
-- Vérification matricule ne répond pas: testez la RPC via `curl` comme ci-dessus. Vérifiez la présence de la table `public.seeg_agents` et le type BIGINT de `matricule`.
-- 401/403 côté RPC: vérifiez `VITE_SUPABASE_ANON_KEY` et les droits `GRANT EXECUTE` sur la fonction.
+---
 
+## 📅 Dernière Mise à Jour
 
-
- <!-- Pour activer/desactiver la maintenance il suffit de modifier la constante MAINTENANCE_MODE dans le fichier src/config/maintenance.ts -->
+**Date** : 2025-10-02  
+**Version** : 1.0.0  
+**Statut** : Production Ready ✅

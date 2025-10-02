@@ -59,4 +59,24 @@ export async function updateProtocol2(id: string | number, payload: Partial<Prot
 export async function listProtocol2ByApplication(applicationId: string | number) {
   const { data } = await api.get<Protocol2EvaluationDTO[]>(`${BASE}/protocol2/application/${encodeURIComponent(String(applicationId))}`);
   return data;
+}
+
+// GET stats/overview - Statistiques globales des évaluations
+export interface EvaluationStatsDTO {
+  total_evaluations: number;
+  protocol1_count: number;
+  protocol2_count: number;
+  average_protocol1_score?: number;
+  average_protocol2_score?: number;
+  evaluations_by_status?: Record<string, number>;
+  recent_evaluations?: number;
+}
+
+export async function getEvaluationStats(): Promise<EvaluationStatsDTO | null> {
+  try {
+    const { data } = await api.get<EvaluationStatsDTO>(`${BASE}/stats/overview`);
+    return data as EvaluationStatsDTO;
+  } catch {
+    return null;
+  }
 } 

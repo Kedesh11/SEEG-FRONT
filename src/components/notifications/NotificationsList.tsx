@@ -1,63 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Bell, Check, Calendar, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: string;
-  read: boolean;
-  created_at: string;
-}
+import { useNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '@/hooks/useNotifications';
 
 export const NotificationsList: React.FC = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: notifications = [], isLoading } = useNotifications();
+  const { mutateAsync: markAsRead } = useMarkNotificationAsRead();
+  const { mutateAsync: markAllAsRead } = useMarkAllNotificationsAsRead();
 
-  // Charger les notifications
-  useEffect(() => {
-    loadNotifications();
-  }, []);
-
-  const loadNotifications = async () => {
+  const handleMarkAsRead = async (notificationId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (error) {
-        console.error('Erreur lors du chargement des notifications:', error);
-        return;
-      }
-
-      setNotifications(data || []);
-    } catch (error) {
-      console.error('Erreur lors du chargement des notifications:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Marquer comme lue
-  const markAsRead = async (notificationId: string) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('id', notificationId);
-
-      if (error) {
-        console.error('Erreur lors de la mise à jour:', error);
-        return;
-      }
+      await markAsRead(notificationId);
 
       // Mettre à jour l'état local
       setNotifications(prev => 

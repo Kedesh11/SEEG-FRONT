@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useRecruiterDashboard } from "@/hooks/useRecruiterDashboard";
-import { useRecruiterActivity } from "@/hooks/useRecruiterActivity";
+// useRecruiterActivity supprimé - remplacé par useRecruiterDashboard
 import { ActivityHistoryModal } from "@/components/modals/ActivityHistoryModal";
 import { DashboardToggle } from "@/components/ui/DashboardToggle";
 import { formatDistanceToNow } from 'date-fns';
@@ -44,15 +44,18 @@ import {
 import ObserverAdvancedDashboard from "./ObserverAdvancedDashboard";
 
 export default function ObserverDashboard() {
-  const { 
-    stats, 
-    jobCoverage, 
-    statusEvolution, 
-    applicationsPerJob, 
-    isLoading, 
-    error 
-  } = useRecruiterDashboard();
-  const { data: activities, isLoading: isLoadingActivities, error: errorActivities } = useRecruiterActivity();
+  const recruiterDashboard = useRecruiterDashboard();
+  const dashboardData = recruiterDashboard.data as any;
+  const stats = dashboardData?.stats || { totalJobs: 0, totalCandidates: 0, newCandidates: 0, interviewsScheduled: 0 };
+  const jobCoverage = dashboardData?.jobCoverage || [];
+  const statusEvolution = dashboardData?.statusEvolution || [];
+  const applicationsPerJob = dashboardData?.applicationsPerJob || [];
+  const isLoading = recruiterDashboard.isLoading;
+  const error = recruiterDashboard.error;
+  // useRecruiterActivity supprimé - fonctionnalité désactivée temporairement
+  const activities: any[] = [];
+  const isLoadingActivities = false;
+  const errorActivities = null;
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [dashboardView, setDashboardView] = useState<'classic' | 'advanced'>('classic');
 
@@ -80,7 +83,7 @@ export default function ObserverDashboard() {
       <ObserverLayout>
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">
-            <p className="text-red-500 mb-4">Erreur lors du chargement: {error}</p>
+            <p className="text-red-500 mb-4">Erreur lors du chargement: {error?.message || 'Erreur inconnue'}</p>
             <Button variant="outline" onClick={() => window.location.reload()}>
               Réessayer
             </Button>

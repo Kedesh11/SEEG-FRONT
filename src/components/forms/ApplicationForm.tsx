@@ -17,7 +17,16 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useApplicationDraft } from "@/hooks/useApplicationDraft";
 import { DraftSaveIndicator, DraftRestoreNotification } from "@/components/ui/DraftSaveIndicator";
-import { supabase } from "@/integrations/supabase/client";
+import { 
+  getApplicationById, 
+  updateApplication,
+  getApplicationDraft,
+  upsertApplicationDraft,
+  deleteApplicationDraft,
+  listApplicationDocuments,
+  uploadApplicationDocument,
+  deleteApplicationDocument
+} from "@/integrations/api/applications";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { isApplicationClosed } from "@/utils/applicationUtils";
@@ -25,7 +34,6 @@ import { isPreLaunch } from "@/utils/launchGate";
 import { getMetierQuestionsForTitle, MTPQuestions } from '@/data/metierQuestions';
 import { Spinner } from "@/components/ui/spinner";
 import { useMemo } from 'react';
-import { uploadApplicationDocument } from "@/integrations/api/applications";
 
 interface ApplicationFormProps {
   jobTitle: string;
@@ -313,22 +321,12 @@ export function ApplicationForm({ jobTitle, jobId, onBack, onSubmit, application
     const loadExisting = async () => {
       if (mode !== 'edit' || !applicationId) return;
       try {
-        const { data, error } = await supabase
-          .from('applications')
-          .select(`
-            reference_contacts,
-            mtp_answers,
-            candidate_id
-          `)
-          .eq('id', applicationId)
-          .single();
-
-        if (error) throw error;
+        const data = await getApplicationById(applicationId);
         if (aborted || !data) return;
         
-        // Pré-remplissage MTP et références indépendamment des données profil/utilisateur
-        const mtp = (data as any).mtp_answers as { metier?: string[]; talent?: string[]; paradigme?: string[] } | null;
-        const refContacts = (data as any).reference_contacts ?? (data as any).ref_contacts;
+        // Pré-remplissage MTP et références
+        const mtp = data.mtp_answers as { metier?: string[]; talent?: string[]; paradigme?: string[] } | null;
+        const refContacts = data.reference_contacts;
 
         setFormData(prev => {
           const next = {
@@ -361,32 +359,16 @@ export function ApplicationForm({ jobTitle, jobId, onBack, onSubmit, application
           return next;
         });
 
-        // Récupérer les informations utilisateur et profil séparément (enrichissement, non bloquant)
-        const candidateId = (data as any).candidate_id;
-        if (candidateId) {
-          const [{ data: userData }, { data: profileData }] = await Promise.all([
-            supabase
-              .from('users')
-              .select('first_name, last_name, email, date_of_birth')
-              .eq('id', candidateId)
-              .maybeSingle(),
-            supabase
-              .from('candidate_profiles')
-              .select('current_position, gender')
-              .eq('user_id', candidateId)
-              .maybeSingle()
-          ]);
-
+        // Les informations utilisateur sont déjà chargées via useAuth
+        // On utilise directement les données du user connecté
+        if (user) {
           setFormData(prev => {
             const next = {
             ...prev,
-            // Informations personnelles depuis la candidature existante
-            firstName: userData?.first_name || prev.firstName,
-            lastName: userData?.last_name || prev.lastName,
-            email: userData?.email || prev.email,
-            dateOfBirth: userData?.date_of_birth ? new Date(userData.date_of_birth) : prev.dateOfBirth,
-            gender: profileData?.gender || prev.gender,
-            currentPosition: profileData?.current_position || prev.currentPosition,
+            firstName: user.first_name || prev.firstName,
+            lastName: user.last_name || prev.lastName,
+            email: user.email || prev.email,
+            dateOfBirth: user.date_of_birth ? new Date(user.date_of_birth) : prev.dateOfBirth,
             };
             try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* ignore */ }
             return next;
@@ -406,24 +388,20 @@ export function ApplicationForm({ jobTitle, jobId, onBack, onSubmit, application
     const loadDocuments = async () => {
       if (mode !== 'edit' || !applicationId) return;
       try {
-        const { data, error } = await supabase
-          .from('application_documents')
-          .select('document_type, file_name, file_url, file_size')
-          .eq('application_id', applicationId);
-        if (error) throw error;
+        const data = await listApplicationDocuments(applicationId);
         if (cancelled || !data) return;
 
         const makeUploaded = (d: any): UploadedFile => ({
-          path: d.file_url,
-          name: d.file_name,
-          size: d.file_size ?? 0,
+          path: d.url || d.file_url,
+          name: d.filename || d.file_name,
+          size: d.size_bytes ?? d.file_size ?? 0,
           type: ''
         });
 
-        const cv = data.find(d => d.document_type === 'cv');
-        const cover = data.find(d => d.document_type === 'cover_letter');
-                const certificates = data.filter(d => d.document_type === 'diploma').map(makeUploaded);
-        const additionalCertificates = data.filter(d => d.document_type === 'certificate').map(makeUploaded);
+        const cv = data.find(d => (d as any).document_type === 'cv');
+        const cover = data.find(d => (d as any).document_type === 'cover_letter');
+        const certificates = data.filter(d => (d as any).document_type === 'diploma').map(makeUploaded);
+        const additionalCertificates = data.filter(d => (d as any).document_type === 'certificate').map(makeUploaded);
 
         setFormData(prev => {
           const next = {
@@ -487,13 +465,12 @@ export function ApplicationForm({ jobTitle, jobId, onBack, onSubmit, application
       if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = window.setTimeout(async () => {
         try {
-          await supabase.from('application_drafts').upsert({
-            user_id: user.id,
+          await upsertApplicationDraft({
             job_offer_id: jobId,
-            form_data: formData,
+            form_data: formData as unknown as Record<string, unknown>,
             ui_state: { currentStep, activeTab },
             updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_id,job_offer_id' });
+          });
         } catch (e) {
           console.warn('Draft sync failed (non-blocking):', (e as any)?.message || e);
         }
@@ -510,15 +487,10 @@ export function ApplicationForm({ jobTitle, jobId, onBack, onSubmit, application
       let restored = false;
       if (user?.id && jobId) {
         try {
-          const { data, error } = await supabase
-            .from('application_drafts')
-            .select('form_data, ui_state')
-            .eq('user_id', user.id)
-            .eq('job_offer_id', jobId)
-            .maybeSingle();
-          if (!error && data) {
-            const srvForm = (data as any).form_data as Partial<FormData> | undefined;
-            const srvUi = (data as any).ui_state as { currentStep?: number; activeTab?: 'metier' | 'talent' | 'paradigme' } | undefined;
+          const data = await getApplicationDraft(jobId);
+          if (data) {
+            const srvForm = data.form_data as Partial<FormData> | undefined;
+            const srvUi = data.ui_state as { currentStep?: number; activeTab?: 'metier' | 'talent' | 'paradigme' } | undefined;
             if (srvForm) {
               setFormData(prev => {
                 const merged = {
@@ -712,38 +684,17 @@ export function ApplicationForm({ jobTitle, jobId, onBack, onSubmit, application
       let applicationIdForDocs: string | undefined;
 
       if (mode === 'edit' && applicationId) {
-        const { error: updError } = await supabase
-          .from('applications')
-          .update({
-            reference_contacts: formData.references,
-            mtp_answers: {
-              metier: mtpQuestions.metier.map((_, i) => formData[`metier${i + 1}`]),
-              talent: mtpQuestions.talent.map((_, i) => formData[`talent${i + 1}`]),
-              paradigme: mtpQuestions.paradigme.map((_, i) => formData[`paradigme${i + 1}`]),
-            },
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', applicationId);
-        if (updError) throw updError;
+        await updateApplication(applicationId, {
+          reference_contacts: formData.references,
+          mtp_answers: {
+            metier: mtpQuestions.metier.map((_, i) => formData[`metier${i + 1}`]),
+            talent: mtpQuestions.talent.map((_, i) => formData[`talent${i + 1}`]),
+            paradigme: mtpQuestions.paradigme.map((_, i) => formData[`paradigme${i + 1}`]),
+          },
+        });
 
-        // Mettre à jour aussi le profil candidat en mode édition
-        if (user?.id) {
-          const profilePayload: Record<string, unknown> = {
-            user_id: user.id,
-          };
-          
-          if (formData.gender) profilePayload.gender = formData.gender;
-          if (formData.currentPosition) profilePayload.current_position = formData.currentPosition;
-          if (formData.yearsOfExperience) profilePayload.years_of_experience = parseInt(formData.yearsOfExperience) || 0;
-
-          const { error: profileError } = await supabase
-            .from('candidate_profiles')
-            .upsert(profilePayload, { onConflict: 'user_id' });
-
-          if (profileError) {
-            console.error('Erreur lors de la mise à jour du profil candidat:', profileError);
-          }
-        }
+        // Le profil candidat est maintenant géré par l'API Backend via updateMe
+        // Pas besoin de mise à jour séparée ici
 
         applicationIdForDocs = applicationId;
       } else {
@@ -763,61 +714,44 @@ export function ApplicationForm({ jobTitle, jobId, onBack, onSubmit, application
       // Gérer les documents lors de l'édition ou création
       if (mode === 'edit' && applicationIdForDocs) {
         // En mode édition, supprimer d'abord tous les anciens documents
-        await supabase
-          .from('application_documents')
-          .delete()
-          .eq('application_id', applicationIdForDocs);
+        const existingDocs = await listApplicationDocuments(applicationIdForDocs);
+        for (const doc of existingDocs) {
+          await deleteApplicationDocument(applicationIdForDocs, doc.id);
+        }
       }
 
-      const docsPayload: Array<{ application_id: string; document_type: string; file_name: string; file_url: string; file_size: number | null; }> = [];
-      
-      const toFileUrl = (p: string) => (isPublicUrl(p)) ? p : getFileUrl(p);
-
+      // Upload des documents via l'API Backend
       const filesToUpload: { file: UploadedFile | null, type: string }[] = [
         { file: formData.cv, type: 'cv' },
         { file: formData.coverLetter, type: 'cover_letter' },
       ];
 
+      // Upload des fichiers principaux
       for (const { file, type } of filesToUpload) {
-        if (file) {
-          docsPayload.push({
-            application_id: applicationIdForDocs as string,
-            document_type: type,
-            file_name: file.name,
-            file_url: toFileUrl(file.path),
-            file_size: file.size ?? null,
-          });
+        if (file && applicationIdForDocs && file.path && !file.path.startsWith('http')) {
+          // Si le fichier est un blob local, on doit le convertir en File
+          const fileObj = new File([await fetch(file.path).then(r => r.blob())], file.name);
+          await uploadApplicationDocument(applicationIdForDocs, fileObj);
         }
       }
 
+      // Upload des diplômes
       for (const cert of formData.certificates) {
-        docsPayload.push({
-          application_id: applicationIdForDocs as string,
-          document_type: 'diploma',
-          file_name: cert.name,
-          file_url: toFileUrl(cert.path),
-          file_size: cert.size ?? null,
-        });
+        if (applicationIdForDocs && cert.path && !cert.path.startsWith('http')) {
+          const fileObj = new File([await fetch(cert.path).then(r => r.blob())], cert.name);
+          await uploadApplicationDocument(applicationIdForDocs, fileObj);
+        }
       }
 
+      // Upload des certificats additionnels
       for (const cert of formData.additionalCertificates) {
-        docsPayload.push({
-          application_id: applicationIdForDocs as string,
-          document_type: 'certificate',
-          file_name: cert.name,
-          file_url: toFileUrl(cert.path),
-          file_size: cert.size ?? null,
-        });
+        if (applicationIdForDocs && cert.path && !cert.path.startsWith('http')) {
+          const fileObj = new File([await fetch(cert.path).then(r => r.blob())], cert.name);
+          await uploadApplicationDocument(applicationIdForDocs, fileObj);
+        }
       }
 
       // Les recommandations sont désormais masquées et non traitées
-
-      if (docsPayload.length > 0) {
-        const { error: docsError } = await supabase
-          .from('application_documents')
-          .insert(docsPayload);
-        if (docsError) throw docsError;
-      }
 
       // Send confirmation email (non-blocking) - DÉSACTIVÉ
       // try {

@@ -15,7 +15,6 @@ interface ApplicationDetails {
   users?: LinkedUserRecord | LinkedUserRecord[];
   job_offers?: LinkedJobOfferRecord | LinkedJobOfferRecord[];
 }
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 

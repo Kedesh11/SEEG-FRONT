@@ -96,6 +96,12 @@ export async function updateApplication(id: string | number, payload: Applicatio
   return mapApplication(dto);
 }
 
+// DELETE - Supprimer une candidature
+export async function deleteApplication(id: string | number): Promise<boolean> {
+  const { status } = await api.delete(ROUTES.APPLICATIONS.DETAIL(id));
+  return status === 204 || status === 200;
+}
+
 // Documents API
 export interface ApplicationDocumentDTO {
   id: string | number;
@@ -144,6 +150,16 @@ export async function downloadApplicationDocument(applicationId: string | number
   URL.revokeObjectURL(url);
 }
 
+// Upload multiple documents (optimisé pour uploads en masse)
+export async function uploadMultipleDocuments(applicationId: string | number, files: File[]): Promise<ApplicationDocumentDTO[]> {
+  const form = new FormData();
+  files.forEach((file) => {
+    form.append('files', file);
+  });
+  const { data } = await api.post<{ data?: ApplicationDocumentDTO[] }>(`${ROUTES.APPLICATIONS.DETAIL(applicationId)}/documents/multiple`, form, { headers: {} });
+  return (data?.data ?? []) as ApplicationDocumentDTO[];
+}
+
 export interface ApplicationDraftDTO {
   job_offer_id: string;
   form_data: Record<string, unknown>;
@@ -178,5 +194,68 @@ export async function deleteApplicationDraft(jobOfferId: string): Promise<boolea
     return status === 204 || status === 200;
   } catch {
     return false;
+  }
+}
+
+// Application History
+export interface ApplicationHistoryEventDTO {
+  id?: string | number;
+  application_id: string | number;
+  event_type: string;
+  description?: string | null;
+  performed_by?: string | number;
+  metadata?: Record<string, unknown> | null;
+  created_at?: string;
+}
+
+export async function getApplicationHistory(applicationId: string | number): Promise<ApplicationHistoryEventDTO[]> {
+  try {
+    const { data } = await api.get<{ data?: ApplicationHistoryEventDTO[] }>(`${ROUTES.APPLICATIONS.DETAIL(applicationId)}/history`);
+    return (data?.data ?? []) as ApplicationHistoryEventDTO[];
+  } catch {
+    return [];
+  }
+}
+
+export async function addApplicationHistoryEvent(applicationId: string | number, event: Partial<ApplicationHistoryEventDTO>): Promise<ApplicationHistoryEventDTO | null> {
+  try {
+    const { data } = await api.post<{ data?: ApplicationHistoryEventDTO }>(`${ROUTES.APPLICATIONS.DETAIL(applicationId)}/history`, event);
+    return (data?.data ?? null) as ApplicationHistoryEventDTO | null;
+  } catch {
+    return null;
+  }
+}
+
+// Application Statistics
+export interface ApplicationStatsDTO {
+  total_applications: number;
+  by_status: Record<string, number>;
+  recent_applications: number;
+  average_processing_time?: number;
+}
+
+export async function getApplicationStats(): Promise<ApplicationStatsDTO | null> {
+  try {
+    const { data } = await api.get<{ data?: ApplicationStatsDTO }>(`${ROUTES.APPLICATIONS.BASE}/stats/overview`);
+    return (data?.data ?? null) as ApplicationStatsDTO | null;
+  } catch {
+    return null;
+  }
+}
+
+export interface ApplicationAdvancedStatsDTO {
+  total: number;
+  by_job: Record<string, number>;
+  by_period: Record<string, number>;
+  conversion_rates: Record<string, number>;
+}
+
+export async function getApplicationAdvancedStats(params?: QueryParams): Promise<ApplicationAdvancedStatsDTO | null> {
+  try {
+    const url = withQuery(`${ROUTES.APPLICATIONS.BASE}/stats/advanced`, params);
+    const { data } = await api.get<{ data?: ApplicationAdvancedStatsDTO }>(url);
+    return (data?.data ?? null) as ApplicationAdvancedStatsDTO | null;
+  } catch {
+    return null;
   }
 } 

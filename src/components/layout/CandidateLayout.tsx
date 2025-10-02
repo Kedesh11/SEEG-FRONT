@@ -18,7 +18,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { useState, createContext, useContext, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+// Supabase import removed - using Backend API
 import { DashboardMain } from "@/components/candidate/DashboardMain";
 import { JobCatalog } from "@/components/candidate/JobCatalog";
 import { CandidateApplications } from "@/components/candidate/CandidateApplications";

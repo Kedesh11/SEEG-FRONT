@@ -1,94 +1,49 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from './useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { useMemo } from "react";
+import { useAuth } from "./useAuth";
+import { useMyProfile } from "./useUsers";
 
-export interface ProfileCompletionStatus {
-  isComplete: boolean;
-  missingFields: string[];
-  completionPercentage: number;
-  message: string;
-}
-
+/**
+ * Hook pour calculer le pourcentage de complétion du profil
+ * Calcul côté client basé sur les données du profil utilisateur
+ */
 export function useProfileCompletion() {
   const { user } = useAuth();
-  const [status, setStatus] = useState<ProfileCompletionStatus>({
-    isComplete: true,
-    missingFields: [],
-    completionPercentage: 100,
-    message: ''
-  });
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: profile } = useMyProfile();
 
-  const checkProfileCompletion = useCallback(async () => {
-    if (!user?.id) {
-      setIsLoading(false);
-      return;
-    }
+  const completionPercentage = useMemo(() => {
+    if (!user && !profile) return 0;
 
-    try {
-      // Récupérer les données utilisateur et profil
-      const [{ data: userData }, { data: profileData }] = await Promise.all([
-        supabase
-          .from('users')
-          .select('phone')
-          .eq('id', user.id)
-          .maybeSingle(),
-        supabase
-          .from('candidate_profiles')
-          .select('gender, current_position, years_experience, address, birth_date')
-          .eq('user_id', user.id)
-          .maybeSingle()
-      ]);
+    const fields = [
+      user?.email,
+      user?.first_name,
+      user?.last_name,
+      user?.phone,
+      user?.date_of_birth,
+      profile?.gender,
+      profile?.current_position,
+      profile?.birth_date,
+    ];
 
-      const missingFields: string[] = [];
-      
-      // Vérifier les champs obligatoires
-      if (!userData?.phone) missingFields.push('téléphone');
-      if (!profileData?.birth_date) missingFields.push('date de naissance');
-      
-      if (!profileData?.gender || profileData.gender === 'Non renseigné') {
-        missingFields.push('sexe');
-      }
-      if (!profileData?.current_position || profileData.current_position === 'Non renseigné') {
-        missingFields.push('poste actuel');
-      }
-      if (!profileData?.address) missingFields.push('adresse');
+    const completedFields = fields.filter((field) => field && field !== '').length;
+    return Math.round((completedFields / fields.length) * 100);
+  }, [user, profile]);
 
-      const totalFields = 5; // phone, birth_date, gender, current_position, address
-      const completedFields = totalFields - missingFields.length;
-      const completionPercentage = Math.round((completedFields / totalFields) * 100);
+  const missingFields = useMemo(() => {
+    const missing: string[] = [];
+    
+    if (!user?.first_name) missing.push('Prénom');
+    if (!user?.last_name) missing.push('Nom');
+    if (!user?.phone) missing.push('Téléphone');
+    if (!user?.date_of_birth) missing.push('Date de naissance');
+    if (!profile?.gender) missing.push('Genre');
+    if (!profile?.current_position) missing.push('Poste actuel');
 
-      const isComplete = missingFields.length === 0;
-      
-      let message = '';
-      if (!isComplete) {
-        if (missingFields.length === 1) {
-          message = `Il vous manque ${missingFields[0]} pour compléter votre profil.`;
-        } else if (missingFields.length === 2) {
-          message = `Il vous manque ${missingFields[0]} et ${missingFields[1]} pour compléter votre profil.`;
-        } else {
-          const lastField = missingFields.pop();
-          message = `Il vous manque ${missingFields.join(', ')} et ${lastField} pour compléter votre profil.`;
-        }
-      }
+    return missing;
+  }, [user, profile]);
 
-      setStatus({
-        isComplete,
-        missingFields,
-        completionPercentage,
-        message
-      });
-
-    } catch (error) {
-      console.error('Erreur lors de la vérification du profil:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    checkProfileCompletion();
-  }, [user?.id, checkProfileCompletion]);
-
-  return { status, isLoading, refetch: () => checkProfileCompletion() };
+  return {
+    completionPercentage,
+    missingFields,
+    isComplete: completionPercentage === 100,
+  };
 }

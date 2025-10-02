@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, X, Calendar, User, Briefcase } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
-import { supabase } from "@/integrations/supabase/client";
+// Supabase import removed - using Backend API
 import { useNavigate } from 'react-router-dom';
 
 interface Activity {

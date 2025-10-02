@@ -8,7 +8,7 @@ import { useApplication } from "@/hooks/useApplications";
 import { useApplicationDocuments, getDocumentTypeLabel, formatFileSize } from "@/hooks/useDocuments";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-// import { supabase } from "@/integrations/supabase/client";
+// // Supabase import removed - using Backend API
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { downloadCandidateDocumentsAsZip } from "@/utils/downloadUtils";

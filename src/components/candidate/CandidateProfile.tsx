@@ -11,28 +11,28 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { User, Mail, Phone, Calendar, Briefcase, Edit, Save, X, Loader2, Download } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth, SignUpMetadata } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { useApplications } from "@/hooks/useApplications";
 import { useCandidateDocuments, getDocumentTypeLabel, formatFileSize } from "@/hooks/useDocuments";
-// import { supabase } from "@/integrations/supabase/client";
 import { getMyProfile } from "@/integrations/api/users";
 
 export function CandidateProfile() {
-  const { user, updateUser, isUpdating } = useAuth();
+  const { user } = useAuth();
   const { applications, isLoading: isLoadingApplications } = useApplications();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { data: documents = [] } = useCandidateDocuments();
   const [formData, setFormData] = useState({
-    firstName: user?.user_metadata.first_name || "",
-    lastName: user?.user_metadata.last_name || "",
+    firstName: user?.first_name || "",
+    lastName: user?.last_name || "",
     email: user?.email || "",
-    matricule: user?.user_metadata.matricule || "",
-    birthDate: user?.user_metadata.birth_date || "",
-    currentPosition: user?.user_metadata.current_position || "",
-    phone: user?.user_metadata.phone || "",
-    gender: (user?.user_metadata as any)?.gender || "",
-    bio: user?.user_metadata.bio || ""
+    matricule: user?.matricule?.toString() || "",
+    birthDate: user?.date_of_birth || "",
+    currentPosition: "",
+    phone: user?.phone || "",
+    gender: "",
+    bio: ""
   });
 
   // Merge missing fields depuis backend
@@ -58,47 +58,45 @@ export function CandidateProfile() {
   }, [user]);
 
   const handleSave = async () => {
-    const { firstName, lastName, birthDate, currentPosition, phone, bio, matricule, gender } = formData;
-    const metadataToUpdate: Partial<SignUpMetadata> = {
-      first_name: firstName,
-      last_name: lastName,
-      birth_date: birthDate,
-      current_position: currentPosition,
-      phone,
-      gender,
-      bio,
-      matricule,
-      role: user?.user_metadata?.role
-    };
+    const { firstName, lastName, birthDate, phone } = formData;
+    setIsUpdating(true);
+    
+    try {
+      const { updateMe } = await import("@/integrations/api/users");
+      await updateMe({
+        first_name: firstName,
+        last_name: lastName,
+        date_of_birth: birthDate,
+        phone: phone,
+      });
 
-    const success = await updateUser(metadataToUpdate);
-
-    if (success) {
       toast({
         title: "Profil mis à jour",
         description: "Vos informations ont été sauvegardées avec succès.",
       });
       setIsEditing(false);
-    } else {
+    } catch (error) {
       toast({
         title: "Erreur",
         description: "La mise à jour de votre profil a échoué. Veuillez réessayer.",
         variant: "destructive",
       });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   const handleCancel = () => {
     setFormData({
-      firstName: user?.user_metadata.first_name || "",
-      lastName: user?.user_metadata.last_name || "",
+      firstName: user?.first_name || "",
+      lastName: user?.last_name || "",
       email: user?.email || "",
-      matricule: user?.user_metadata.matricule || "",
-      birthDate: user?.user_metadata.birth_date || "",
-      currentPosition: user?.user_metadata.current_position || "",
-      phone: user?.user_metadata.phone || "",
-      gender: (user?.user_metadata as any)?.gender || "",
-      bio: user?.user_metadata.bio || ""
+      matricule: user?.matricule?.toString() || "",
+      birthDate: user?.date_of_birth || "",
+      currentPosition: "",
+      phone: user?.phone || "",
+      gender: "",
+      bio: ""
     });
     setIsEditing(false);
   };

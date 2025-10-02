@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { getJobs, getMyJobs, getRecruiterStatistics, type RecruiterStatsDTO, type JobOffer } from "@/integrations/api/jobs";
+import { getApplications, getApplicationStats, getApplicationAdvancedStats, type Application, type ApplicationAdvancedStatsDTO } from "@/integrations/api/applications";
+import { getDashboardStatsOptimized } from "@/integrations/api/optimized";
 
 export interface RecruiterStats {
   totalJobs: number;
-  totalCandidates: number; // candidats uniques
+  totalCandidates: number;
   newCandidates: number;
   interviewsScheduled: number;
   malePercent?: number;
@@ -53,8 +55,131 @@ export interface ApplicationsPerJobData {
   new_applications_24h: number;
 }
 
+/**
+ * Construit les données du dashboard à partir des stats du recruteur (endpoints spécifiques)
+ * Utilise PRIORITAIREMENT la route: GET /api/v1/jobs/recruiter/statistics
+ */
+function buildDashboardFromRecruiterStats(
+  recruiterStats: RecruiterStatsDTO,
+  advancedStats: ApplicationAdvancedStatsDTO | null,
+  myJobs: JobOffer[],
+  applications: Application[]
+) {
+  console.log('✅ Utilisation de la route spécifique recruteur: /api/v1/jobs/recruiter/statistics');
+  
+  // Stats de base depuis l'API backend (route spécifique recruteur)
+  const stats: RecruiterStats = {
+    totalJobs: recruiterStats.total_jobs || recruiterStats.active_jobs || 0,
+    totalCandidates: recruiterStats.total_applications || 0,
+    newCandidates: recruiterStats.new_applications || 0,
+    interviewsScheduled: Object.entries(recruiterStats.applications_by_status)
+      .filter(([status]) => status === 'incubation' || status === 'entretien_programme')
+      .reduce((sum, [, count]) => sum + (count as number), 0),
+  };
+
+  // Traiter les jobs avec les stats du backend
+  const processedJobs: RecruiterJobOffer[] = myJobs.map(job => {
+    // Utiliser les données de l'API backend (applications_by_job)
+    const jobAppsCount = recruiterStats.applications_by_job[job.id] || 0;
+    
+    const oneDayAgo = new Date();
+    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+    
+    // Calculer les nouvelles candidatures des 24h
+    const newApplications = applications.filter(app => {
+      const appDate = new Date(app.created_at || '');
+      return app.job_offer_id === job.id && appDate > oneDayAgo;
+    }).length;
+
+    return {
+      id: job.id,
+      title: job.title,
+      location: Array.isArray(job.location) ? job.location[0] : job.location,
+      contract_type: job.contract_type,
+      created_at: job.created_at,
+      candidate_count: jobAppsCount, // ✅ Depuis API backend
+      new_candidates: newApplications,
+    };
+  });
+
+  // Job Coverage (utilise les données de recruiterStats.applications_by_job)
+  const jobCoverage: JobCoverageData[] = processedJobs.map(job => {
+    const current = job.candidate_count; // ✅ Depuis API backend
+    const rate = Math.min(100, (current / 10) * 100);
+    
+    let status: 'excellent' | 'good' | 'moderate' | 'low' = 'low';
+    if (rate >= 80) status = 'excellent';
+    else if (rate >= 60) status = 'good';
+    else if (rate >= 40) status = 'moderate';
+
+    return {
+      id: job.id,
+      title: job.title,
+      current_applications: current,
+      coverage_rate: rate,
+      coverage_status: status,
+    };
+  });
+
+  // Applications Per Job (utilise les données de recruiterStats.applications_by_job)
+  const applicationsPerJob: ApplicationsPerJobData[] = processedJobs.map(job => ({
+    id: job.id,
+    title: job.title,
+    applications_count: job.candidate_count, // ✅ Depuis API backend
+    new_applications_24h: job.new_candidates,
+  }));
+
+  // Status Evolution (utiliser advancedStats si disponible)
+  const statusEvolution: StatusEvolutionData[] = [];
+  if (advancedStats?.by_period) {
+    // Utiliser les données de l'API
+    Object.entries(advancedStats.by_period).forEach(([date, count]) => {
+      const dayApps = applications.filter(app => {
+        const appDate = new Date(app.created_at || '');
+        return appDate.toISOString().split('T')[0] === date;
+      });
+
+      statusEvolution.push({
+        date,
+        candidature: dayApps.filter(a => a.status === 'candidature').length,
+        incubation: dayApps.filter(a => a.status === 'incubation').length,
+        embauche: dayApps.filter(a => a.status === 'embauche').length,
+        refuse: dayApps.filter(a => a.status === 'refuse').length,
+      });
+    });
+  } else {
+    // Calculer pour les 7 derniers jours
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const dayApps = applications.filter(app => {
+        const appDate = new Date(app.created_at || '');
+        return appDate.toISOString().split('T')[0] === dateStr;
+      });
+
+      statusEvolution.push({
+        date: dateStr,
+        candidature: dayApps.filter(a => a.status === 'candidature').length,
+        incubation: dayApps.filter(a => a.status === 'incubation').length,
+        embauche: dayApps.filter(a => a.status === 'embauche').length,
+        refuse: dayApps.filter(a => a.status === 'refuse').length,
+      });
+    }
+  }
+
+  return {
+    stats,
+    activeJobs: processedJobs,
+    jobCoverage,
+    statusEvolution,
+    applicationsPerJob,
+  };
+}
+
 export function useRecruiterDashboard() {
-  const { user } = useAuth();
+  const { user, isRecruiter, isAdmin, isObserver } = useAuth();
 
   const fetchDashboardData = async () => {
     if (!user) {
@@ -67,477 +192,246 @@ export function useRecruiterDashboard() {
       };
     }
 
-    // Check user role
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    // Fetch ALL active job offers for recruiters and admins
-    const { data: jobsData, error: jobsError } = await supabase
-      .from('job_offers')
-      .select(`
-        id,
-        title,
-        location,
-        contract_type,
-        created_at,
-        recruiter_id,
-        department
-      `)
-      .eq('status', 'active');
-
-    // Récupérer TOUTES les candidatures avec la fonction optimisée
-    const { data: combinedEntries } = await supabase.rpc('get_all_recruiter_applications');
-    const allEntries = combinedEntries || [];
-
-    // Extraire les détails des candidatures
-    const allApplicationsData = (allEntries || []).map((app: any) => app.application_details);
-
-    if (jobsError) {
-      throw jobsError;
+    // 1. Utiliser l'endpoint optimisé si disponible (PRIORITÉ 1)
+    try {
+      const optimizedData = await getDashboardStatsOptimized();
+      if (optimizedData) {
+        console.log('✅ Dashboard: Utilisation de l\'endpoint optimisé');
+        return optimizedData;
+      }
+    } catch (error) {
+      console.warn('⚠️ Optimized dashboard not available, falling back to specific endpoints');
     }
 
-    // Process jobs data with ALL applications
-    const processedJobs: RecruiterJobOffer[] = (jobsData || []).map(job => {
-      // Find all applications for this job from the separate query
-      const jobApplications = (allApplicationsData || []).filter(app => app.job_offer_id === job.id);
+    // 2. PRIORITÉ: Utiliser la route spécifique recruteur /api/v1/jobs/recruiter/statistics
+    try {
+      const [recruiterStats, advancedStats, myJobs, applications] = await Promise.all([
+        getRecruiterStatistics(), // ✅ Route spécifique recruteur
+        getApplicationAdvancedStats(), // Stats avancées
+        getMyJobs({ status: 'active' }), // Mes jobs uniquement
+        getApplications(), // Toutes les candidatures (pour calculs complémentaires)
+      ]);
+
+      // Si on a les stats du recruteur, les utiliser (c'est la route recommandée!)
+      if (recruiterStats) {
+        return buildDashboardFromRecruiterStats(recruiterStats, advancedStats, myJobs, applications);
+      }
+    } catch (error) {
+      console.warn('⚠️ Recruiter-specific endpoints failed, falling back to manual calculation', error);
+    }
+
+    // 3. Fallback final: Calculer manuellement avec les endpoints génériques (PRIORITÉ 3)
+    console.warn('⚠️ Dashboard: Utilisation du fallback manuel (endpoints génériques)');
+    const jobs = await getJobs({ status: 'active' });
+    const applications = await getApplications();
+    const appStats = await getApplicationStats();
+
+    // Calculer les stats
+    const processedJobs: RecruiterJobOffer[] = jobs.map(job => {
+      const jobApplications = applications.filter(app => app.job_offer_id === job.id);
       
       const totalApplications = jobApplications.length;
+      const oneDayAgo = new Date();
+      oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+      
       const newApplications = jobApplications.filter(app => {
-        const appDate = new Date(app.created_at);
-        // Calculer la date d'il y a 24h en respectant le fuseau horaire local
-        const oneDayAgo = new Date();
-        oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+        const appDate = new Date(app.created_at || '');
         return appDate > oneDayAgo;
       }).length;
 
       return {
         id: job.id,
         title: job.title,
-        location: job.location,
+        location: Array.isArray(job.location) ? job.location[0] : job.location,
         contract_type: job.contract_type,
         created_at: job.created_at,
-        recruiter_id: job.recruiter_id,
-        totalApplications,
-        newApplications,
-        candidate_count: totalApplications, // Alias pour le dashboard
-        new_candidates: newApplications,    // Alias pour le dashboard
+        candidate_count: totalApplications,
+        new_candidates: newApplications,
       };
     });
 
-    // Gather unique candidates across ALL applications
-    const candidateIds = Array.from(new Set((allApplicationsData || []).map(a => a.candidate_id).filter(Boolean)));
+    // Candidats uniques
+    const candidateIds = new Set(applications.map(a => a.candidate_id).filter(Boolean));
+    const totalCandidates = candidateIds.size;
 
-    // Calculate stats
-    const totalJobs = processedJobs.length;
-    const totalCandidates = candidateIds.length; // uniques
-    const newCandidates = processedJobs.reduce((sum, job) => sum + job.new_candidates, 0);
+    // Nouvelles candidatures (24h)
+    const oneDayAgo = new Date();
+    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+    const newCandidates = applications.filter(app => {
+      const appDate = new Date(app.created_at || '');
+      return appDate > oneDayAgo;
+    }).length;
 
-    // Count interviews scheduled (applications in 'incubation' status) from ALL applications
-    const interviewsScheduled = (allApplicationsData || []).filter(app => app.status === 'incubation').length;
+    // Entretiens programmés
+    const interviewsScheduled = applications.filter(app => 
+      app.status === 'incubation' || app.status === 'entretien_programme'
+    ).length;
 
-    // Compute multi-post applicants (candidates who applied to 2+ jobs)
+    // Stats multi-candidatures
     const applicationsByCandidate = new Map<string, Set<string>>();
-    for (const app of (allApplicationsData || [])) {
-      const cid = app.candidate_id as string | undefined;
-      const jid = app.job_offer_id as string | undefined;
-      if (!cid || !jid) continue;
-      if (!applicationsByCandidate.has(cid)) applicationsByCandidate.set(cid, new Set());
-      applicationsByCandidate.get(cid)!.add(jid);
-    }
-    let multiPostCandidates = 0;
-    applicationsByCandidate.forEach(set => { if (set.size > 1) multiPostCandidates++; });
-
-    // Compute gender distribution from RPC data (robust normalization)
-    let malePercent: number | undefined = 0;
-    let femalePercent: number | undefined = 0;
-
-    // Helper to normalize various inputs to 'Homme' | 'Femme' | null
-    const normalizeGender = (g?: string | null): 'Homme' | 'Femme' | null => {
-      if (!g) return null;
-      const s = g.trim().toLowerCase();
-      const maleSet = new Set(['h', 'm', 'homme', 'masculin', 'male', 'mâle']);
-      const femaleSet = new Set(['f', 'femme', 'feminin', 'féminin', 'female']);
-      if (maleSet.has(s)) return 'Homme';
-      if (femaleSet.has(s)) return 'Femme';
-      return null;
-    };
-
-    if (candidateIds.length > 0) {
-      // Extract gender data from RPC results instead of making a separate query
-      const candidateGenders = new Map<string, string | null>();
-      
-      // Get unique candidates with their gender from RPC data
-      (allEntries || []).forEach((app: any) => {
-        const candidateId = app.candidate_details?.id || app.application_details?.candidate_id;
-        const gender = app.candidate_details?.gender || app.candidate_details?.candidate_profiles?.gender; // Vérifier les deux emplacements
-        if (candidateId && !candidateGenders.has(candidateId)) {
-          candidateGenders.set(candidateId, gender);
-        }
-      });
-
-      // Debug: Log gender data extraction
-      console.log('[DASHBOARD DEBUG] Full candidate_details object:', JSON.stringify(allEntries?.[0]?.candidate_details, null, 2));
-      console.log('[DASHBOARD DEBUG] Direct gender from candidate_details:', allEntries?.[0]?.candidate_details?.gender);
-      console.log('[DASHBOARD DEBUG] Candidate genders map:', candidateGenders);
-      
-      // Extraire le genre depuis candidate_profiles si disponible
-      if (allEntries?.[0]?.candidate_details?.candidate_profiles?.gender) {
-        const profileGender = allEntries[0].candidate_details.candidate_profiles.gender;
-        console.log('[DASHBOARD DEBUG] Gender from candidate_profiles:', profileGender);
+    applications.forEach(app => {
+      if (!app.candidate_id || !app.job_offer_id) return;
+      if (!applicationsByCandidate.has(app.candidate_id)) {
+        applicationsByCandidate.set(app.candidate_id, new Set());
       }
-
-      // Normalize genders for unique candidates
-      const normalized: Array<{ user_id: string; gender: 'Homme' | 'Femme' | null }> = 
-        Array.from(candidateGenders.entries()).map(([userId, gender]) => ({
-          user_id: userId,
-          gender: normalizeGender(gender)
-        }));
-
-      const withGender = normalized.filter(p => p.gender !== null);
-      const totalWithGender = withGender.length;
-      if (totalWithGender > 0) {
-        const maleCount = withGender.filter(p => p.gender === 'Homme').length;
-        const femaleCount = withGender.filter(p => p.gender === 'Femme').length;
-        malePercent = (maleCount / totalWithGender) * 100;
-        femalePercent = (femaleCount / totalWithGender) * 100;
-      } else {
-        malePercent = 0;
-        femalePercent = 0;
-      }
-    }
+      applicationsByCandidate.get(app.candidate_id)!.add(app.job_offer_id);
+    });
+    
+    const multiPostCandidates = Array.from(applicationsByCandidate.values())
+      .filter(jobs => jobs.size > 1).length;
 
     const stats: RecruiterStats = {
-      totalJobs,
+      totalJobs: processedJobs.length,
       totalCandidates,
       newCandidates,
       interviewsScheduled,
-      malePercent,
-      femalePercent,
       multiPostCandidates,
     };
 
-    // Calculate job coverage data - using a scoring system based on application count
-    const jobCoverage: JobCoverageData[] = (jobsData || []).map(job => {
-      const jobApplications = (allApplicationsData || []).filter(app => app.job_offer_id === job.id);
-      const currentApplications = jobApplications.length;
+    // Job Coverage
+    const jobCoverage: JobCoverageData[] = processedJobs.map(job => {
+      const current = job.candidate_count;
+      const rate = Math.min(100, (current / 10) * 100); // Assuming 10 is the target
       
-      // Create a coverage score based on number of applications
-      // This replaces the target_positions calculation
-      let coverageScore = 0;
-      let coverageStatus: JobCoverageData['coverage_status'] = 'low';
-      
-      if (currentApplications >= 10) {
-        coverageScore = 100;
-        coverageStatus = 'excellent';
-      } else if (currentApplications >= 7) {
-        coverageScore = 85;
-        coverageStatus = 'good';
-      } else if (currentApplications >= 4) {
-        coverageScore = 70;
-        coverageStatus = 'moderate';
-      } else if (currentApplications >= 1) {
-        coverageScore = 50;
-        coverageStatus = 'low';
-      }
+      let status: 'excellent' | 'good' | 'moderate' | 'low' = 'low';
+      if (rate >= 80) status = 'excellent';
+      else if (rate >= 60) status = 'good';
+      else if (rate >= 40) status = 'moderate';
 
       return {
         id: job.id,
         title: job.title,
-        current_applications: currentApplications,
-        coverage_rate: coverageScore,
-        coverage_status: coverageStatus
+        current_applications: current,
+        coverage_rate: rate,
+        coverage_status: status,
       };
     });
 
-    // Calculate applications per job data
-    const applicationsPerJob: ApplicationsPerJobData[] = (jobsData || []).map(job => {
-      const jobApplications = (allApplicationsData || []).filter(app => app.job_offer_id === job.id);
-      const newApplications24h = jobApplications.filter(app => {
-        const appDate = new Date(app.created_at);
-        // Calculer la date d'il y a 24h en respectant le fuseau horaire local
-        const oneDayAgo = new Date();
-        oneDayAgo.setHours(oneDayAgo.getHours() - 24);
-        return appDate > oneDayAgo;
-      }).length;
+    // Applications Per Job
+    const applicationsPerJob: ApplicationsPerJobData[] = processedJobs.map(job => ({
+      id: job.id,
+      title: job.title,
+      applications_count: job.candidate_count,
+      new_applications_24h: job.new_candidates,
+    }));
 
-      return {
-        id: job.id,
-        title: job.title,
-        applications_count: jobApplications.length,
-        new_applications_24h: newApplications24h
-      };
-    });
-
-    // Calculate department statistics
-    const departmentStats: DepartmentStats[] = [];
-    const departments = ['Eau', 'Électricité', 'Support'];
-    
-    // Debug: Log all jobs and their departments
-    console.log('[DASHBOARD DEBUG] All jobs:', jobsData);
-    console.log('[DASHBOARD DEBUG] Jobs with departments:', (jobsData || []).map(job => ({ id: job.id, title: job.title, department: job.department })));
-    
-    departments.forEach(dept => {
-      const deptJobs = (jobsData || []).filter(job => job.department === dept);
-      const deptJobCount = deptJobs.length;
-      
-      // Debug: Log department filtering
-      console.log(`[DASHBOARD DEBUG] Department "${dept}":`, { deptJobCount, jobs: deptJobs.map(j => j.title) });
-      
-      // Always add the department, even if no jobs
-      const deptApplications = deptJobs.reduce((sum, job) => {
-        const jobApplications = (allApplicationsData || []).filter(app => app.job_offer_id === job.id);
-        return sum + jobApplications.length;
-      }, 0);
-      
-      const coverageRate = deptJobCount > 0 ? Math.round((deptApplications / deptJobCount) * 100) : 0;
-      
-      departmentStats.push({
-        department: dept,
-        jobCount: deptJobCount,
-        applicationCount: deptApplications,
-        coverageRate
-      });
-    });
-    
-    // Debug: Log final department stats
-    console.log('[DASHBOARD DEBUG] Final department stats:', departmentStats);
-
-    // Calculate status evolution over the last 7 days
+    // Status Evolution (derniers 7 jours)
     const statusEvolution: StatusEvolutionData[] = [];
-    
-    // Date limite de candidature : 01 septembre 2025
-    const applicationDeadline = new Date('2025-09-01T23:59:59');
-    const now = new Date();
-    
-    // Si on est après la date limite, on s'arrête au 31 août
-    const endDate = now > applicationDeadline ? applicationDeadline : now;
-    
-    // Générer les 7 derniers jours en respectant le fuseau horaire local
-    // mais en s'arrêtant à la date limite de candidature
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(endDate);
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
       date.setDate(date.getDate() - i);
-      // Utiliser toLocaleDateString pour éviter les problèmes de fuseau horaire
-      return date.toLocaleDateString('fr-CA'); // Format YYYY-MM-DD
-    }).reverse();
-
-    last7Days.forEach(date => {
-      const dayApplications = (allApplicationsData || []).filter(app => {
-        // Créer une date locale à partir de la date de création
-        const appDate = new Date(app.created_at);
-        // Comparer avec la date locale du jour (00h00 à 23h59)
-        const appDateLocal = appDate.toLocaleDateString('fr-CA');
-        return appDateLocal === date;
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const dayApps = applications.filter(app => {
+        const appDate = new Date(app.created_at || '');
+        return appDate.toISOString().split('T')[0] === dateStr;
       });
-
-      const candidature = dayApplications.filter(app => app.status === 'candidature').length;
-      const incubation = dayApplications.filter(app => app.status === 'incubation').length;
-      const embauche = dayApplications.filter(app => app.status === 'embauche').length;
-      const refuse = dayApplications.filter(app => app.status === 'refuse').length;
 
       statusEvolution.push({
-        date,
-        candidature,
-        incubation,
-        embauche,
-        refuse
+        date: dateStr,
+        candidature: dayApps.filter(a => a.status === 'candidature').length,
+        incubation: dayApps.filter(a => a.status === 'incubation').length,
+        embauche: dayApps.filter(a => a.status === 'embauche').length,
+        refuse: dayApps.filter(a => a.status === 'refuse').length,
       });
-    });
+    }
 
-    return { 
-      stats, 
+    return {
+      stats,
       activeJobs: processedJobs,
       jobCoverage,
       statusEvolution,
       applicationsPerJob,
-      departmentStats
     };
   };
 
-  const { data, isLoading, error, refetch } = useQuery({
+  return useQuery({
     queryKey: ['recruiterDashboard', user?.id],
     queryFn: fetchDashboardData,
-    enabled: !!user,
-    refetchInterval: 30000, // Refresh every 30 seconds for real-time data
+    enabled: !!user && (isRecruiter || isAdmin || isObserver),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
-
-  return {
-    stats: data?.stats ?? { totalJobs: 0, totalCandidates: 0, newCandidates: 0, interviewsScheduled: 0 },
-    activeJobs: data?.activeJobs ?? [],
-    jobCoverage: data?.jobCoverage ?? [],
-    statusEvolution: data?.statusEvolution ?? [],
-    applicationsPerJob: data?.applicationsPerJob ?? [],
-    departmentStats: data?.departmentStats ?? [],
-    isLoading,
-    error: error?.message || null,
-    refetch
-  };
 }
 
-
-
 export function useCreateJobOffer() {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  // Minimal shapes for inserting/updating job_offers
-  type JobOffersInsert = {
-    recruiter_id: string;
-    status: 'active' | 'draft' | string;
-    title?: string;
-    description?: string;
-    location?: string;
-    contract_type?: string;
-    profile?: string;
-    department?: string | null;
-    salary_min?: number | null;
-    salary_max?: number | null;
-    requirements?: string[] | null;
-    benefits?: string[] | null;
-    application_deadline?: string | null;
-    // New columns
-    categorie_metier?: string | null;
-    date_limite?: string | null;
-    reporting_line?: string | null;
-    job_grade?: string | null;
-    salary_note?: string | null;
-    start_date?: string | null;
-    responsibilities?: string[] | null;
-  };
-  type JobOffersUpdate = Partial<Omit<JobOffersInsert, 'recruiter_id' | 'status'>> & {
-    status?: 'active' | 'draft' | string;
-  };
-
-  const createJobOfferMutation = useMutation({
-    mutationFn: async ({ jobData, status }: {
-      jobData: any;
-      status: 'active' | 'draft';
-    }) => {
-      if (!user) throw new Error("User not authenticated");
-
-      console.log('[CreateJobOffer] Input data:', { jobData, status });
-      console.log('[CreateJobOffer] User ID:', user.id);
-
-      // Build payload with proper field mapping
-      const basePayload: JobOffersInsert = { 
-        recruiter_id: user.id, 
-        status,
-        title: jobData.title,
-        description: jobData.description,
-        location: jobData.location,
-        contract_type: jobData.contract_type,
-        profile: jobData.profile,
-        categorie_metier: jobData.categorie_metier,
-        date_limite: jobData.date_limite,
-        reporting_line: jobData.reporting_line,
-        salary_note: jobData.salary_note,
-        start_date: jobData.start_date,
-        responsibilities: jobData.responsibilities,
-        requirements: jobData.requirements
-      };
-
-      // Remove undefined/null/empty values
-      Object.keys(basePayload).forEach(key => {
-        if (basePayload[key] === undefined || basePayload[key] === null || basePayload[key] === '') {
-          delete basePayload[key];
-        }
+  return useMutation({
+    mutationFn: async (jobData: any) => {
+      // Utiliser l'API backend pour créer une offre
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://seeg-backend-api.azurewebsites.net'}/api/v1/jobs/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('hcm_access_token')}`,
+        },
+        body: JSON.stringify(jobData),
       });
 
-      console.log('[CreateJobOffer] Final payload:', basePayload);
-
-      const { data, error } = await supabase.from('job_offers').insert([basePayload]).select();
-
-      if (error) {
-        console.error('[CreateJobOffer] Database error:', error);
-        throw new Error(`Erreur lors de la création de l'offre: ${error.message}`);
+      if (!response.ok) {
+        throw new Error('Failed to create job offer');
       }
-      
-      console.log('[CreateJobOffer] Success:', data);
-      return data;
+
+      return await response.json();
     },
     onSuccess: () => {
-      console.log('[CreateJobOffer] Mutation successful, invalidating queries');
       queryClient.invalidateQueries({ queryKey: ['recruiterDashboard', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['jobOffers'] });
     },
-    onError: (error) => {
-      console.error('[CreateJobOffer] Mutation error:', error);
-    },
   });
+}
 
-  const updateJobOfferMutation = useMutation({
-    mutationFn: async ({ jobId, jobData }: { jobId: string, jobData: Partial<Omit<RecruiterJobOffer, 'id' | 'candidate_count' | 'new_candidates' | 'created_at'>> & { description?: string; status?: string; profile?: string } }) => {
-      if (!user) throw new Error("User not authenticated");
+export function useUpdateJobOffer() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-      // Only send defined fields
-      const cleanData: JobOffersUpdate = {};
-      for (const [k, v] of Object.entries(jobData)) {
-        if (v !== undefined) cleanData[k] = v;
+  return useMutation({
+    mutationFn: async ({ id, jobData }: { id: string; jobData: any }) => {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://seeg-backend-api.azurewebsites.net'}/api/v1/jobs/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('hcm_access_token')}`,
+        },
+        body: JSON.stringify(jobData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update job offer');
       }
 
-      const { error } = await supabase
-        .from('job_offers')
-        .update(cleanData)
-        .eq('id', jobId);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recruiterDashboard', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['jobOffers'] });
+    },
+  });
+}
 
-      if (error && (error.message?.includes('column') || error.message?.includes('profile') || error.code === '409')) {
-        const retryData = { ...cleanData };
-        delete retryData.profile;
-        const retry = await supabase
-          .from('job_offers')
-          .update(retryData)
-          .eq('id', jobId);
-        if (retry.error) throw retry.error;
-      } else if (error) {
-        throw error;
+export function useDeleteJobOffer() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://seeg-backend-api.azurewebsites.net'}/api/v1/jobs/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('hcm_access_token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete job offer');
       }
-      return null;
+
+      return true;
     },
-    onSuccess: (_, { jobId }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recruiterDashboard', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['jobOffers'] });
-      queryClient.invalidateQueries({ queryKey: ['jobOffer', jobId] });
     },
   });
-
-  interface DeleteJobOfferVariables {
-    jobId: string;
-    onSuccess?: () => void;
-    onError?: (error: unknown) => void;
-  }
-
-  const deleteJobOfferMutation = useMutation<null, Error, DeleteJobOfferVariables>({
-    mutationFn: async ({ jobId }) => {
-      if (!user) throw new Error("User not authenticated");
-
-      const { error } = await supabase
-        .from('job_offers')
-        .update({ status: 'closed' })
-        .eq('id', jobId);
-
-      if (error) throw error;
-      return null;
-    },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['recruiterDashboard', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['jobOffers'] });
-      queryClient.invalidateQueries({ queryKey: ['jobOffer', variables.jobId] });
-      variables.onSuccess?.();
-    },
-    onError: (error, variables) => {
-      variables.onError?.(error);
-    },
-  });
-
-  return {
-    createJobOffer: createJobOfferMutation.mutateAsync,
-    isCreating: createJobOfferMutation.isPending,
-    updateJobOffer: updateJobOfferMutation.mutateAsync,
-    isUpdating: updateJobOfferMutation.isPending,
-    deleteJobOffer: deleteJobOfferMutation.mutate,
-    isDeleting: deleteJobOfferMutation.isPending,
-  };
 }

@@ -27,18 +27,31 @@ import {
 } from "@/components/ui/AdvancedCharts";
 import { Link, useNavigate } from "react-router-dom";
 import { useRecruiterDashboard } from "@/hooks/useRecruiterDashboard";
-import { useAdvancedRecruiterStats } from "@/hooks/useAdvancedRecruiterStats";
+// useAdvancedRecruiterStats supprimé - remplacé par useRecruiterDashboard
 import { useAuth } from "@/hooks/useAuth";
-import { useRecruiterActivity } from "@/hooks/useRecruiterActivity";
+// useRecruiterActivity supprimé - remplacé par useRecruiterDashboard
 import { ActivityHistoryModal } from "@/components/modals/ActivityHistoryModal";
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
 export default function AdvancedDashboard() {
   const navigate = useNavigate();
-  const { stats, activeJobs, statusEvolution, applicationsPerJob, isLoading, error } = useRecruiterDashboard();
-  const { stats: advancedStats, isLoading: isLoadingAdvancedStats, error: advancedStatsError } = useAdvancedRecruiterStats(activeJobs.length);
-  const { data: activities, isLoading: isLoadingActivities, error: errorActivities } = useRecruiterActivity();
+  const recruiterDashboard = useRecruiterDashboard();
+  const dashboardData = recruiterDashboard.data as any;
+  const stats = dashboardData?.stats || { totalJobs: 0, totalCandidates: 0, newCandidates: 0, interviewsScheduled: 0 };
+  const activeJobs = dashboardData?.activeJobs || [];
+  const statusEvolution = dashboardData?.statusEvolution || [];
+  const applicationsPerJob = dashboardData?.applicationsPerJob || [];
+  const isLoading = recruiterDashboard.isLoading;
+  const error = recruiterDashboard.error;
+  // useAdvancedRecruiterStats supprimé - utilisation des stats principales
+  const advancedStats = stats;
+  const isLoadingAdvancedStats = isLoading;
+  const advancedStatsError = error;
+  // useRecruiterActivity supprimé - fonctionnalité désactivée temporairement
+  const activities: any[] = [];
+  const isLoadingActivities = false;
+  const errorActivities = null;
   const { isRecruiter } = useAuth();
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
@@ -49,7 +62,7 @@ export default function AdvancedDashboard() {
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-sm sm:text-base text-red-500 mb-4">Erreur lors du chargement: {error}</p>
+        <p className="text-sm sm:text-base text-red-500 mb-4">Erreur lors du chargement: {error?.message || 'Erreur inconnue'}</p>
         <Button variant="outline" onClick={() => window.location.reload()} className="text-sm sm:text-base">
           Réessayer
         </Button>

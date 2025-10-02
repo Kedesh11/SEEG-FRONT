@@ -22,7 +22,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { useRecruiterDashboard } from "@/hooks/useRecruiterDashboard";
 import { useAuth } from "@/hooks/useAuth";
-import { useRecruiterActivity } from "@/hooks/useRecruiterActivity";
+// useRecruiterActivity supprimé - remplacé par useRecruiterDashboard
 import { ActivityHistoryModal } from "@/components/modals/ActivityHistoryModal";
 import { DashboardToggle } from "@/components/ui/DashboardToggle";
 import { formatDistanceToNow } from 'date-fns';
@@ -58,7 +58,10 @@ export default function RecruiterDashboard() {
     isLoading, 
     error 
   } = useRecruiterDashboard();
-  const { data: activities, isLoading: isLoadingActivities, error: errorActivities } = useRecruiterActivity();
+  // useRecruiterActivity supprimé - fonctionnalité désactivée temporairement
+  const activities: any[] = [];
+  const isLoadingActivities = false;
+  const errorActivities = null;
   const { isRecruiter } = useAuth();
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [dashboardView, setDashboardView] = useState<'classic' | 'advanced'>('classic');

@@ -10,7 +10,7 @@ import {
   Eye
 } from "lucide-react";
 import { useRecruiterDashboard } from "@/hooks/useRecruiterDashboard";
-import { useRecruiterActivity } from "@/hooks/useRecruiterActivity";
+// useRecruiterActivity supprimé - remplacé par useRecruiterDashboard
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
@@ -30,15 +30,16 @@ import {
 } from 'recharts';
 
 export default function ObserverAdvancedDashboard() {
-  const { 
-    stats, 
-    jobCoverage, 
-    statusEvolution, 
-    applicationsPerJob, 
-    isLoading 
-  } = useRecruiterDashboard();
+  const recruiterDashboard = useRecruiterDashboard();
+  const dashboardData = recruiterDashboard.data as any;
+  const stats = dashboardData?.stats || { totalJobs: 0, totalCandidates: 0, newCandidates: 0, interviewsScheduled: 0 };
+  const jobCoverage = dashboardData?.jobCoverage || [];
+  const statusEvolution = dashboardData?.statusEvolution || [];
+  const applicationsPerJob = dashboardData?.applicationsPerJob || [];
+  const isLoading = recruiterDashboard.isLoading;
   
-  const { data: activities } = useRecruiterActivity();
+  // useRecruiterActivity supprimé - fonctionnalité désactivée temporairement
+  const activities: any[] = [];
 
   if (isLoading) {
     return (
