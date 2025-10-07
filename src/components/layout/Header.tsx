@@ -10,14 +10,21 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { useEffect, useState } from "react";
-import { useNotifications } from "@/hooks/useNotifications";
-import { diagnoseDatabaseAccess } from "@/utils/databaseDiagnostics";
+import { 
+  useNotifications, 
+  useUnreadNotificationsCount, 
+  useMarkNotificationAsRead, 
+  useMarkAllNotificationsAsRead 
+} from "@/hooks/useNotifications";
 
 export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut, isRecruiter, isCandidate, isAdmin, refreshUserRole } = useAuth();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { user, signOut, isRecruiter, isCandidate, isAdmin, refreshUser } = useAuth();
+  const { data: notifications = [] } = useNotifications();
+  const { data: unreadCount = 0 } = useUnreadNotificationsCount();
+  const { mutate: markAsRead } = useMarkNotificationAsRead();
+  const { mutate: markAllAsRead } = useMarkAllNotificationsAsRead();
   const [notificationOpen, setNotificationOpen] = useState(false);
   const isAuthenticated = !!user;
   const preLaunch = isPreLaunch();
@@ -55,27 +62,10 @@ export function Header() {
 
   const handleRefreshRole = async () => {
     try {
-      await refreshUserRole();
+      await refreshUser();
       toast.success("Rôle mis à jour !");
     } catch (error) {
       toast.error("Erreur lors de la mise à jour du rôle");
-    }
-  };
-
-  const handleDiagnoseDatabase = async () => {
-    try {
-      const results = await diagnoseDatabaseAccess();
-      console.log('Diagnostic results:', results);
-      
-      if (results.errors.length > 0) {
-        toast.error(`Diagnostic: ${results.errors.length} erreur(s) détectée(s)`);
-        console.error('Database diagnostic errors:', results.errors);
-      } else {
-        toast.success("Diagnostic: Base de données accessible");
-      }
-    } catch (error) {
-      toast.error("Erreur lors du diagnostic");
-      console.error('Diagnostic failed:', error);
     }
   };
 
@@ -147,7 +137,7 @@ export function Header() {
               <>
                 {isCandidate && (
                   <span className="hidden md:block text-xs sm:text-sm text-muted-foreground truncate max-w-32">
-                    Bonjour {user.user_metadata?.first_name}
+                    Bonjour {user.first_name}
                   </span>
                 )}
                 {isRecruiter && (
@@ -227,12 +217,6 @@ export function Header() {
                   <Building2 className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">Actualiser</span>
                   <span className="sm:hidden">Actualiser</span>
-                </Button>
-
-                <Button variant="outline" size="sm" onClick={handleDiagnoseDatabase} className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
-                  <Building2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">Diagnostic</span>
-                  <span className="sm:hidden">Diag</span>
                 </Button>
 
                 <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">

@@ -183,5 +183,12 @@ export function useProtocol2Evaluation(applicationId: string) {
   // Charger l'évaluation au montage du composant
   useEffect(() => { loadEvaluation(); }, [loadEvaluation]);
 
-  return { evaluationData, updateEvaluation, calculateSectionScores, isLoading, isSaving };
+  return { 
+    evaluationData, 
+    updateEvaluation, 
+    calculateSectionScores, 
+    isLoading, 
+    isSaving,
+    reload: loadEvaluation  // Ajout de reload pour rechargement manuel
+  };
 }

@@ -9,7 +9,7 @@ import { useState } from "react";
 import { useApplications } from "@/hooks/useApplications";
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { exportApplicationPdf } from '@/utils/exportPdfUtils';
+// import { exportApplicationPdf } from '@/utils/exportPdfUtils'; // REMOVED - Supabase dependency
 
 // Statuts et couleurs correspondants
 const statusConfig = {
@@ -22,7 +22,7 @@ const statusConfig = {
 export function CandidateApplications() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const { setCurrentView } = useCandidateLayout();
-  const { data: applications, isLoading, error } = useApplications();
+  const { applications, isLoading, error } = useApplications();
   const navigate = useNavigate();
 
   if (isLoading) {
@@ -115,14 +115,12 @@ export function CandidateApplications() {
                             variant="outline" 
                             size="sm"
                             className="gap-1 md:gap-2 text-xs sm:text-sm md:text-sm h-8 md:h-9 flex-1"
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              try {
-                                await exportApplicationPdf(application, application.job_offers?.title || 'Candidature');
-                              } catch (error) {
-                                console.error('Error exporting PDF:', error);
-                                // Vous pourriez vouloir afficher une notification d'erreur ici
-                              }
+                              alert('Export PDF temporairement désactivé');
+                              /* TODO: Migrate to Backend API
+                              await exportApplicationPdf(application, application.job_offers?.title || 'Candidature');
+                              */
                             }}
                           >
                             <Download className="w-3 h-3 md:w-4 md:h-4" />

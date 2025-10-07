@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { CheckCircle, Clock, AlertCircle, FileText, Users, Target, TrendingUp, Star } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { useOptimizedProtocol2Evaluation } from "@/hooks/useOptimizedProtocol2Evaluation";
+import { useProtocol2Evaluation } from "@/hooks/useProtocol2Evaluation";
 
 interface StarRatingProps {
   value: number;
@@ -120,7 +120,7 @@ export function Protocol2Dashboard({ candidateName, jobTitle, applicationId, onS
     isLoading,
     isSaving,
     reload
-  } = useOptimizedProtocol2Evaluation(applicationId);
+  } = useProtocol2Evaluation(applicationId);
   // Pas de gestion de scroll comme le protocole 1 - plus simple et plus stable
 
   const handleDecision = (decision: 'embauche' | 'refuse') => {
@@ -175,7 +175,7 @@ export function Protocol2Dashboard({ candidateName, jobTitle, applicationId, onS
 
 
   // Calculer les scores directement comme dans le protocole 1
-  const scores = calculateSectionScores(evaluationData);
+  const scores = calculateSectionScores();
 
   if (isLoading) {
     return (
@@ -214,7 +214,7 @@ export function Protocol2Dashboard({ candidateName, jobTitle, applicationId, onS
               </p>
             </div>
             <div className="text-center sm:text-right">
-              <div className="text-xl sm:text-2xl font-bold text-primary">{scores.global.toFixed(1)}%</div>
+              <div className="text-xl sm:text-2xl font-bold text-primary">{scores.globalScore.toFixed(1)}%</div>
               <div className="text-xs text-muted-foreground">Score Global</div>
             </div>
           </div>
@@ -226,7 +226,7 @@ export function Protocol2Dashboard({ candidateName, jobTitle, applicationId, onS
               <span className="font-medium text-gray-600">Progression de l'évaluation</span>
             </div>
             <Progress 
-              value={scores.global} 
+              value={scores.globalScore} 
               className="h-3 bg-gray-200"
               style={{
                 '--progress-foreground': 'linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%)'
@@ -344,35 +344,21 @@ export function Protocol2Dashboard({ candidateName, jobTitle, applicationId, onS
             
             <div className="space-y-3">
               <StarRating
-                value={evaluationData.validation_operationnelle.fiche_kris?.score || 0}
-                onChange={(value) => !isReadOnly && updateProtocol2('validation_operationnelle', 'fiche_kris.score', value)}
-                label="Key Risque Indicators (KRI's)"
+                value={evaluationData.validation_operationnelle.fiche_kpis?.score || 0}
+                onChange={(value) => !isReadOnly && updateProtocol2('validation_operationnelle', 'fiche_kpis.score', value)}
+                label="Key Performance Indicators (KPI's)"
                 disabled={isReadOnly}
               />
               <Textarea
-                placeholder="Commentaires sur les KRI's..."
-                value={evaluationData.validation_operationnelle.fiche_kris?.comments || ''}
-                onChange={(e) => !isReadOnly && updateProtocol2('validation_operationnelle', 'fiche_kris.comments', e.target.value)}
+                placeholder="Commentaires sur les KPI's..."
+                value={evaluationData.validation_operationnelle.fiche_kpis?.comments || ''}
+                onChange={(e) => !isReadOnly && updateProtocol2('validation_operationnelle', 'fiche_kpis.comments', e.target.value)}
                 className={cn("min-h-[60px]", isReadOnly && "bg-gray-100 cursor-not-allowed")}
                 readOnly={isReadOnly}
               />
             </div>
             
-            <div className="space-y-3">
-              <StarRating
-                value={evaluationData.validation_operationnelle.fiche_kcis?.score || 0}
-                onChange={(value) => !isReadOnly && updateProtocol2('validation_operationnelle', 'fiche_kcis.score', value)}
-                label="Key Control Indicators (KCI's)"
-                disabled={isReadOnly}
-              />
-              <Textarea
-                placeholder="Commentaires sur les KCI's..."
-                value={evaluationData.validation_operationnelle.fiche_kcis?.comments || ''}
-                onChange={(e) => !isReadOnly && updateProtocol2('validation_operationnelle', 'fiche_kcis.comments', e.target.value)}
-                className={cn("min-h-[60px]", isReadOnly && "bg-gray-100 cursor-not-allowed")}
-                readOnly={isReadOnly}
-              />
-            </div>
+            {/* Section KCI's supprimée - fusionnée avec KPI's */}
           </div>
         </CardContent>
       </Card>

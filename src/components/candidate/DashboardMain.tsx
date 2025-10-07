@@ -13,12 +13,12 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ContentSpinner } from "@/components/ui/spinner";
 import type { Application } from '@/types/application';
-import { exportApplicationPdf } from '@/utils/exportPdfUtils';
+// import { exportApplicationPdf } from '@/utils/exportPdfUtils'; // REMOVED - Supabase dependency
 
 export function DashboardMain() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { data: applications, isLoading: isLoadingApps, error: errorApps } = useApplications();
+  const { applications, isLoading: isLoadingApps, error: errorApps } = useApplications();
   const { data: jobOffers, isLoading: isLoadingJobs, error: errorJobs } = useJobOffers();
 
   const [locationFilter, setLocationFilter] = useState("all");
@@ -52,7 +52,7 @@ export function DashboardMain() {
       <div className="text-center px-4">
         <h2 className="text-2xl sm:text-3xl font-bold mb-2">Tableau de bord</h2>
         <p className="text-sm sm:text-base lg:text-lg text-muted-foreground">
-          Bonjour {user?.user_metadata.first_name}, voici le suivi de votre parcours de recrutement avec nous.
+          Bonjour {user?.first_name}, voici le suivi de votre parcours de recrutement avec nous.
         </p>
       </div>
 
@@ -147,14 +147,12 @@ export function DashboardMain() {
                         <span>Voir le suivi</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onClick={async (e) => {
+                        onClick={(e) => {
                           e.stopPropagation();
-                          try {
-                            await exportApplicationPdf(application, application.job_offers?.title || 'Candidature');
-                          } catch (error) {
-                            console.error('Error exporting PDF:', error);
-                            // Vous pourriez vouloir afficher une notification d'erreur ici
-                          }
+                          alert('Export PDF temporairement désactivé');
+                          /* TODO: Migrate to Backend API
+                          await exportApplicationPdf(application, application.job_offers?.title || 'Candidature');
+                          */
                         }}
                         className="cursor-pointer"
                       >

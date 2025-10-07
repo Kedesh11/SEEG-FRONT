@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import type { Application } from '@/types/application';
-import { exportApplicationPdf } from '@/utils/exportPdfUtils';
+// import { exportApplicationPdf } from '@/utils/exportPdfUtils'; // REMOVED - Supabase dependency
 import { Link } from 'react-router-dom';
 
 interface ApplicationActionsMenuProps {
@@ -23,15 +23,19 @@ export function ApplicationActionsMenu({ application, jobTitle, className = '', 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleExportPdf = async () => {
+    // DISABLED - Supabase dependency removed
+    console.warn('Export PDF désactivé - fonctionnalité Supabase retirée');
+    alert('Export PDF temporairement désactivé');
+    /* TODO: Migrate to Backend API
     try {
       setIsLoading(true);
       await exportApplicationPdf(application, jobTitle);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      // You might want to show a toast notification here
     } finally {
       setIsLoading(false);
     }
+    */
   };
 
   if (variant === 'menu-item') {

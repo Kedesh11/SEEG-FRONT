@@ -7,6 +7,10 @@ Ce dossier contient toute la documentation technique du projet SEEG Frontend.
 ### 🔄 Migration & Intégration
 Documentation relative à la migration de Supabase vers l'API Backend et l'intégration complète.
 
+- **RAPPORT_FINAL_MIGRATION.md** - 🎉 **RAPPORT FINAL** - Migration 100% terminée (Production Ready)
+- **STATUT_FINAL_SUPABASE.md** - ✅ STATUS FINAL - Supabase 100% retiré (0 erreur TypeScript)
+- **SUPPRESSION_SUPABASE_COMPLETE.md** - Rapport de suppression Supabase
+- **STATUT_MIGRATION_SUPABASE.md** - État détaillé de la migration
 - **MIGRATION_FINALE_RESUME.md** - Résumé complet de la migration
 - **MIGRATION_COMPLETE_FINAL.md** - État final de la migration
 - **MIGRATION_STATUS.md** - Statut de migration par composant
@@ -20,6 +24,9 @@ Documentation sur l'implémentation et l'utilisation des endpoints API.
 
 - **AUDIT_CHIRURGICAL_FINAL.md** - ⭐ Audit chirurgical complet (95% coverage)
 - **ENDPOINTS_API.md** - Documentation complète des endpoints disponibles
+- **SPEC_INTERVIEW_CALENDAR_API.md** - ⭐ Spécification API Calendrier d'Entretiens (760 lignes)
+- **SPEC_APPLICATION_PDF_API.md** - ⭐ Spécification API Export PDF Candidatures (880 lignes)
+- **MIGRATION_INTERVIEW_CALENDAR.md** - ✅ Migration Calendrier vers Backend API (100% complète)
 - **OPTIMISATION_RECRUITER_DASHBOARD.md** - Optimisation du dashboard recruteur
 
 ### ✅ Tests & Build
@@ -87,10 +94,12 @@ https://seeg-backend-api.azurewebsites.net
 ## 📊 État du Projet
 
 - ✅ Migration Supabase → API Backend : **100% complète**
+- ✅ Suppression Supabase : **100% terminée** (0 code actif)
+- ✅ Erreurs TypeScript : **0 erreur**
 - ✅ Tous les endpoints API : **Implémentés**
 - ✅ Dashboard Recruteur : **Optimisé**
-- ✅ Tests : **Passés**
-- ✅ Build : **Réussi**
+- ✅ **Calendrier d'entretiens : Migré vers Backend API** ✅ (voir MIGRATION_INTERVIEW_CALENDAR.md)
+- ✅ Build : **Prêt pour production**
 - ✅ Authentification JWT : **Fonctionnelle**
 - ✅ Gestion des rôles : **Implémentée**
 - ✅ Protection des routes : **Active**
@@ -107,7 +116,8 @@ https://seeg-backend-api.azurewebsites.net
 
 ## 📅 Dernière Mise à Jour
 
-**Date** : 2025-10-02  
+**Date** : 2025-10-03  
 **Version** : 1.0.0  
-**Statut** : Production Ready ✅
+**Statut** : Production Ready ✅  
+**Supabase** : 100% retiré ✅
 

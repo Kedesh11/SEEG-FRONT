@@ -9,7 +9,7 @@ import { Calendar, Clock, User, MapPin, ChevronLeft, ChevronRight, X } from "luc
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
-import { supabase } from '@/integrations/supabase/client';
+import { listSlots, updateSlot, type InterviewSlotDTO } from "@/integrations/api/interviews";
 
 interface Interview {
   id: string;
@@ -50,88 +50,48 @@ export const InterviewCalendarModal: React.FC<InterviewCalendarModalProps> = ({
   const loadInterviews = useCallback(async () => {
     setIsLoading(true);
     try {
-      console.log('🔄 [CALENDAR DEBUG] Chargement des entretiens...');
+      console.log('🔄 [CALENDAR] Chargement des entretiens depuis Backend API...');
       
-      // 1) Récupérer les créneaux sans jointures complexes (évite 400)
-      // Déterminer la fenêtre du mois courant pour charger tous les jours visibles
+      // Déterminer la fenêtre du mois courant
       const monthStart = startOfMonth(currentMonth);
       const monthEnd = endOfMonth(currentMonth);
       const monthStartStr = format(monthStart, 'yyyy-MM-dd');
       const monthEndStr = format(monthEnd, 'yyyy-MM-dd');
       
-      console.log('🔄 [CALENDAR DEBUG] Période de chargement:', { monthStartStr, monthEndStr });
+      console.log('🔄 [CALENDAR] Période de chargement:', { monthStartStr, monthEndStr });
 
-      const { data: slots, error: slotsError } = await supabase
-        .from('interview_slots')
-        .select('id, date, time, application_id, is_available, candidate_name, job_title, status, created_at, updated_at')
-        .eq('is_available', false)
-        .not('application_id', 'is', null)
-        .gte('date', monthStartStr)
-        .lte('date', monthEndStr)
-        .order('date', { ascending: true })
-        .order('time', { ascending: true });
+      // Appeler l'API Backend pour récupérer les créneaux
+      const slots = await listSlots({
+        date_from: monthStartStr,
+        date_to: monthEndStr,
+        // is_available: false, // Optionnel: filtrer seulement les créneaux occupés
+      });
 
-      if (slotsError) {
-        console.error('❌ [CALENDAR DEBUG] Erreur lors du chargement des créneaux:', slotsError);
-        return;
-      }
-
-      console.log('✅ [CALENDAR DEBUG] Créneaux reçus:', slots?.length, 'créneaux');
-      console.log('✅ [CALENDAR DEBUG] Détail des créneaux:', slots);
+      console.log('✅ [CALENDAR] Créneaux reçus:', slots?.length, 'créneaux');
 
       if (!slots || slots.length === 0) {
         setInterviews([]);
         return;
       }
 
-      // 2) Récupérer les applications liées avec les infos utilisateur et offre
-      const applicationIds = Array.from(new Set(slots.map((s: any) => s.application_id).filter(Boolean)));
-
-      let applicationsById: Record<string, any> = {};
-      if (applicationIds.length > 0) {
-        const { data: apps, error: appsError } = await supabase
-          .from('applications')
-          .select(`
-            id,
-            job_offers ( title ),
-            users ( first_name, last_name )
-          `)
-          .in('id', applicationIds);
-
-        if (appsError) {
-          console.error('❌ [CALENDAR DEBUG] Erreur chargement applications:', appsError);
-        } else {
-          applicationsById = (apps || []).reduce((acc: Record<string, any>, app: any) => {
-            acc[app.id] = app;
-            return acc;
-          }, {});
-        }
-      }
-
-      // 3) Fusionner slots + applications (utiliser les données du slot en priorité)
-      const allInterviews: Interview[] = (slots || []).map((slot: any) => {
-        const app = slot.application_id ? applicationsById[slot.application_id] : undefined;
-        const firstName = app?.users?.first_name ?? '';
-        const lastName = app?.users?.last_name ?? '';
-        const jobTitle = app?.job_offers?.title ?? '';
-
-        return {
-          id: slot.id,
-          application_id: slot.application_id,
-          candidate_name: slot.candidate_name || `${firstName} ${lastName}`.trim() || 'Candidat inconnu',
-          job_title: slot.job_title || jobTitle || 'Poste non spécifié',
+      // Mapper les données Backend vers le format Interview du composant
+      const formattedInterviews: Interview[] = slots
+        .filter(slot => slot.application_id) // Garder seulement les créneaux avec une candidature
+        .map((slot: InterviewSlotDTO) => ({
+          id: String(slot.id),
+          application_id: String(slot.application_id),
+          candidate_name: slot.candidate_name || 'Candidat inconnu',
+          job_title: slot.job_title || 'Poste non spécifié',
           date: slot.date,
-          time: slot.time,
+          time: slot.time.length === 5 ? `${slot.time}:00` : slot.time, // Normaliser HH:mm:ss
           status: (slot.status || 'scheduled') as 'scheduled' | 'completed' | 'cancelled',
-          location: 'Libreville',
+          location: 'Libreville', // Valeur par défaut
           created_at: slot.created_at || new Date().toISOString(),
           updated_at: slot.updated_at || new Date().toISOString()
-        } as Interview;
-      });
+        }));
 
-      // 4) Filtrer pour ne garder que le dernier entretien par candidat (application_id)
-      // Grouper par application_id et garder seulement le plus récent
-      const interviewsByApplication = allInterviews.reduce((acc: Record<string, Interview[]>, interview) => {
+      // Filtrer pour garder seulement le dernier entretien par candidat (application_id)
+      const interviewsByApplication = formattedInterviews.reduce((acc: Record<string, Interview[]>, interview) => {
         if (interview.application_id) {
           if (!acc[interview.application_id]) {
             acc[interview.application_id] = [];
@@ -141,20 +101,20 @@ export const InterviewCalendarModal: React.FC<InterviewCalendarModalProps> = ({
         return acc;
       }, {});
 
-      // Pour chaque application, garder seulement le plus récent (par updated_at ou created_at)
-      const formattedInterviews: Interview[] = Object.values(interviewsByApplication).map(applicationInterviews => {
+      // Pour chaque application, garder seulement le plus récent
+      const latestInterviews: Interview[] = Object.values(interviewsByApplication).map(applicationInterviews => {
         return applicationInterviews.sort((a, b) => {
           const dateA = new Date(a.updated_at || a.created_at || 0);
           const dateB = new Date(b.updated_at || b.created_at || 0);
           return dateB.getTime() - dateA.getTime(); // Plus récent en premier
-        })[0]; // Prendre le premier (le plus récent)
+        })[0];
       });
 
-      console.log('📅 [CALENDAR DEBUG] Entretiens avant filtrage:', allInterviews.length);
-      console.log('📅 [CALENDAR DEBUG] Entretiens après filtrage (dernier par candidat):', formattedInterviews.length);
-      setInterviews(formattedInterviews);
+      console.log('📅 [CALENDAR] Entretiens après filtrage:', latestInterviews.length);
+      setInterviews(latestInterviews);
     } catch (error) {
-      console.error('❌ [CALENDAR DEBUG] Erreur lors du chargement des entretiens:', error);
+      console.error('❌ [CALENDAR] Erreur lors du chargement des entretiens:', error);
+      setInterviews([]);
     } finally {
       setIsLoading(false);
     }
@@ -180,185 +140,70 @@ export const InterviewCalendarModal: React.FC<InterviewCalendarModalProps> = ({
   };
 
   const saveEditingInterview = async () => {
-    console.log('🔄 [CALENDAR DEBUG] Début de saveEditingInterview');
-    console.log('🔄 [CALENDAR DEBUG] isEditing:', isEditing);
-    console.log('🔄 [CALENDAR DEBUG] editingInterview:', editingInterview);
-    console.log('🔄 [CALENDAR DEBUG] draftDate:', draftDate);
-    console.log('🔄 [CALENDAR DEBUG] draftTime:', draftTime);
+    console.log('🔄 [CALENDAR] Début de saveEditingInterview');
     
     if (!isEditing || !editingInterview || !draftDate || !draftTime) {
-      console.log('❌ [CALENDAR DEBUG] Conditions de validation non remplies');
+      console.log('❌ [CALENDAR] Conditions de validation non remplies');
       return;
     }
     
-    // Validation
+    // Validation des formats
     const isValidDate = /^\d{4}-\d{2}-\d{2}$/.test(draftDate);
     const isValidTime = /^([01]?\d|2[0-3]):([0-5]\d):([0-5]\d)$/.test(draftTime);
-    console.log('🔄 [CALENDAR DEBUG] isValidDate:', isValidDate);
-    console.log('🔄 [CALENDAR DEBUG] isValidTime:', isValidTime);
     
     if (!isValidDate || !isValidTime) {
-      console.log('❌ [CALENDAR DEBUG] Validation échouée');
+      console.log('❌ [CALENDAR] Validation échouée');
+      alert('Format de date ou d\'heure invalide');
       return;
     }
     
-    // Vérifier si la date ou l'heure a changé
-    const dateChanged = editingInterview.date !== draftDate;
-    const timeChanged = editingInterview.time !== draftTime;
-    
-    if (dateChanged || timeChanged) {
-      // Si la date ou l'heure a changé, libérer l'ancien créneau
-      console.log('🔄 [CALENDAR DEBUG] Libération de l\'ancien créneau:', editingInterview.date, editingInterview.time);
-      
-      // Libérer l'ancien créneau en le marquant comme disponible
-      const { error: freeOldSlotError } = await supabase
-        .from('interview_slots')
-        .update({ 
-          is_available: true,
-          application_id: null,
-          candidate_id: null,
-          candidate_name: null,
-          job_title: null,
-          status: 'cancelled',
-          notes: 'Créneau libéré lors de la modification',
-          updated_at: new Date().toISOString()
-        })
-        .eq('date', editingInterview.date)
-        .eq('time', editingInterview.time)
-        .eq('application_id', editingInterview.application_id);
-      
-      if (freeOldSlotError) {
-        console.error('❌ [CALENDAR DEBUG] Erreur libération ancien créneau:', freeOldSlotError);
-      } else {
-        console.log('✅ [CALENDAR DEBUG] Ancien créneau libéré avec succès');
-      }
-      
-      // Vérifier si le nouveau créneau existe déjà
-      const { data: existingSlot, error: checkError } = await supabase
-        .from('interview_slots')
-        .select('id, application_id, is_available')
-        .eq('date', draftDate)
-        .eq('time', draftTime)
-        .maybeSingle();
-      
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('❌ [CALENDAR DEBUG] Erreur vérification nouveau créneau:', checkError);
-        return;
-      }
-      
-      if (existingSlot && existingSlot.application_id && existingSlot.application_id !== editingInterview.application_id && !existingSlot.is_available) {
-        console.error('❌ [CALENDAR DEBUG] Le nouveau créneau est déjà occupé par une autre application');
-        return;
-      }
-      
-      if (existingSlot) {
-        // Mettre à jour le créneau existant
-        const { error: updateError } = await supabase
-          .from('interview_slots')
-          .update({
-            application_id: editingInterview.application_id,
-            candidate_name: editingInterview.candidate_name,
-            job_title: editingInterview.job_title,
-            status: 'scheduled',
-            is_available: false,
-            notes: 'Entretien programmé',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingSlot.id);
-        
-        if (updateError) {
-          console.error('❌ [CALENDAR DEBUG] Erreur mise à jour créneau existant:', updateError);
-          return;
-        }
-      } else {
-        // Créer un nouveau créneau
-        const { error: insertError } = await supabase
-          .from('interview_slots')
-          .insert({
-            date: draftDate,
-            time: draftTime,
-            application_id: editingInterview.application_id,
-            candidate_name: editingInterview.candidate_name,
-            job_title: editingInterview.job_title,
-            status: 'scheduled',
-            is_available: false,
-            notes: 'Entretien programmé',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-        
-        if (insertError) {
-          console.error('❌ [CALENDAR DEBUG] Erreur création nouveau créneau:', insertError);
-          return;
-        }
-      }
-    } else {
-      // Si seule la date/heure n'a pas changé, juste mettre à jour les autres infos
-      const { error: updateError } = await supabase
-        .from('interview_slots')
-        .update({ 
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', editingInterview.id);
-      
-      if (updateError) {
-        console.error('❌ [CALENDAR DEBUG] Erreur mise à jour entretien:', updateError);
-        return;
-      }
-    }
+    try {
+      console.log('🔄 [CALENDAR] Mise à jour du créneau:', {
+        slotId: editingInterview.id,
+        newDate: draftDate,
+        newTime: draftTime
+      });
 
-    // Mettre à jour aussi la table applications si l'entretien a un application_id
-    if (editingInterview.application_id) {
-      const interviewDateTime = new Date(`${draftDate}T${draftTime}`);
-      const { error: appUpdateError } = await supabase
-        .from('applications')
-        .update({
-          interview_date: interviewDateTime.toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', editingInterview.application_id);
-      
-      if (appUpdateError) {
-        console.error('❌ [CALENDAR DEBUG] Erreur mise à jour application:', appUpdateError);
-      } else {
-        console.log('✅ [CALENDAR DEBUG] Application mise à jour avec nouvelle date/heure');
-      }
+      // Appeler l'API Backend pour mettre à jour le créneau
+      // Note: Le Backend gère automatiquement la logique complexe de libération de l'ancien créneau
+      await updateSlot(editingInterview.id, {
+        date: draftDate,
+        time: draftTime.slice(0, 5), // Backend attend HH:mm
+        candidate_name: editingInterview.candidate_name,
+        job_title: editingInterview.job_title,
+        status: 'scheduled',
+      });
 
-      // Mettre à jour aussi la table protocol1_evaluations si elle existe
-      const { error: protocolUpdateError } = await supabase
-        .from('protocol1_evaluations')
-        .update({
-          interview_date: interviewDateTime.toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('application_id', editingInterview.application_id);
+      console.log('✅ [CALENDAR] Créneau mis à jour avec succès');
       
-      if (protocolUpdateError) {
-        console.log('ℹ️ [CALENDAR DEBUG] Pas de protocol1_evaluation à mettre à jour ou erreur:', protocolUpdateError);
-      } else {
-        console.log('✅ [CALENDAR DEBUG] Protocol1_evaluation mise à jour avec nouvelle date/heure');
-      }
+      // Réinitialiser l'état d'édition
+      setIsEditing(false);
+      setEditingInterview(null);
+      setDraftDate(null);
+      setDraftTime(null);
+      
+      // Recharger les entretiens
+      await loadInterviews();
+      
+      // Notifier les autres composants
+      window.dispatchEvent(new CustomEvent('interviewSlotsUpdated', {
+        detail: { 
+          action: 'updated', 
+          details: { 
+            slotId: editingInterview.id,
+            oldDate: editingInterview.date, 
+            oldTime: editingInterview.time, 
+            newDate: draftDate, 
+            newTime: draftTime 
+          }, 
+          timestamp: Date.now() 
+        }
+      }));
+      
+    } catch (error) {
+      console.error('❌ [CALENDAR] Erreur lors de la mise à jour:', error);
+      alert('Erreur lors de la modification de l\'entretien. Veuillez réessayer.');
     }
-    
-    console.log('✅ [CALENDAR DEBUG] Entretien mis à jour');
-    
-    // Afficher une notification de succès
-    if (dateChanged || timeChanged) {
-      console.log('✅ [CALENDAR DEBUG] Modification effectuée avec succès - ancien créneau libéré');
-    }
-    
-    setIsEditing(false);
-    setEditingInterview(null);
-    setDraftDate(null);
-    setDraftTime(null);
-    await loadInterviews();
-    
-    // Notifier les changements aux autres composants
-    window.dispatchEvent(new CustomEvent('interviewSlotsUpdated', {
-      detail: { action: 'updated', details: { oldDate: editingInterview.date, oldTime: editingInterview.time, newDate: draftDate, newTime: draftTime }, timestamp: Date.now() }
-    }));
-    
-    console.log('✅ [CALENDAR DEBUG] Fonction saveEditingInterview terminée avec succès');
   };
 
   const cancelEditingInterview = () => {

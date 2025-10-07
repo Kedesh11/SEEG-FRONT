@@ -116,51 +116,19 @@ const Index = () => {
     return matchesSearch && matchesLocation && matchesContract;
   });
 
-  // Fonction de test d'email
+  // Fonction de test d'email - DISABLED (Supabase removed)
+  // TODO: Migrate to Backend API: sendEmail from '@/integrations/api/emails'
   const handleTestEmail = async () => {
-    if (!testEmail.trim()) {
-      toast.error("Veuillez saisir un email de destination");
-      return;
-    }
-
-    setIsSendingTest(true);
-    setTestResult(null);
-
-    try {
-      const result = await supabase.functions.invoke('send_application_confirmation', {
-        body: {
-          to: testEmail.trim(),
-          firstName: testFirstName.trim(),
-          jobTitle: testJobTitle.trim(),
-          applicationId: 'TEST-' + Date.now(),
-        },
-      });
-
-      if (result.error) {
-        setTestResult({
-          success: false,
-          message: "Erreur lors de l'envoi",
-          details: result.error
-        });
-        toast.error("Test d'email échoué");
-      } else {
-        setTestResult({
-          success: true,
-          message: "Email de test envoyé avec succès !",
-          details: result.data
-        });
-        toast.success("Email de test envoyé ! Vérifiez votre boîte de réception");
-      }
-    } catch (error) {
-      setTestResult({
-        success: false,
-        message: "Erreur inattendue",
-        details: error
-      });
-      toast.error("Erreur lors du test d'email");
-    } finally {
-      setIsSendingTest(false);
-    }
+    toast.error("Fonctionnalité de test temporairement désactivée");
+    /* 
+    MIGRATION REQUIRED:
+    import { sendEmail } from '@/integrations/api/emails';
+    await sendEmail({
+      to: testEmail.trim(),
+      subject: 'Confirmation de candidature',
+      body: `Bonjour ${testFirstName}, ...`
+    });
+    */
   };
 
   return (

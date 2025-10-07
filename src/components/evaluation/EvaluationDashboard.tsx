@@ -15,10 +15,11 @@ import { CalendarIcon, Star, Users, CheckCircle, Clock, AlertCircle, FileText, U
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
-import { useOptimizedProtocol1Evaluation } from "@/hooks/useOptimizedProtocol1Evaluation";
+import { useProtocol1Evaluation } from "@/hooks/useProtocol1Evaluation";
 import { useInterviewScheduling } from "@/hooks/useInterviewScheduling";
 import { useToast } from "@/components/ui/use-toast";
 // Supabase import removed - using Backend API
+import { updateApplication } from "@/integrations/api/applications";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { InterviewCalendarModal } from './InterviewCalendarModal';
 import { useNavigate } from 'react-router-dom';
@@ -93,14 +94,14 @@ export const EvaluationDashboard: React.FC<EvaluationDashboardProps> = ({
   onStatusChange,
   isReadOnly = false
 }) => {
-  const { 
-    evaluationData, 
-    updateEvaluation, 
-    calculateSectionScores, 
-    isLoading, 
+  const {
+    evaluationData,
+    updateEvaluation,
+    calculateSectionScores,
+    isLoading,
     isSaving,
     reload
-  } = useOptimizedProtocol1Evaluation(applicationId);
+  } = useProtocol1Evaluation(applicationId);
   
   const {
     schedules,
@@ -174,29 +175,14 @@ export const EvaluationDashboard: React.FC<EvaluationDashboardProps> = ({
   // Fonction pour gérer l'incubation
   const handleIncubate = async () => {
     try {
-      const { error } = await supabase
-        .from('applications')
-        .update({ status: 'incubation', updated_at: new Date().toISOString() })
-        .eq('id', applicationId);
-      if (error) throw error;
-      try {
-        const { data: app } = await supabase
-          .from('applications')
-          .select('users!applications_candidate_id_fkey(email, first_name)')
-          .eq('id', applicationId)
-          .maybeSingle();
-        const rel: any = (app as any)?.users;
-        const toEmail: string | undefined = Array.isArray(rel) ? (rel[0] as any)?.email : (rel as any)?.email;
-        const firstName: string = Array.isArray(rel) ? ((rel[0] as any)?.first_name || '') : ((rel as any)?.first_name || '');
-        if (toEmail) {
-          await supabase.functions.invoke('send_application_status_update', {
-            body: { to: toEmail, firstName, jobTitle, status: 'incubation' }
-          });
-        }
-      } catch { /* non bloquant */ }
+      // Mise à jour via API backend
+      await updateApplication(applicationId, { status: 'incubation' });
+      
+      // Email envoyé automatiquement par le backend
       onStatusChange('incubation');
       toast({ title: "Candidat incubé", description: "Incubation activée.", duration: 3000 });
     } catch (e) {
+      console.error('Erreur lors de l\'incubation:', e);
       toast({ title: 'Erreur', description: "Échec de l'incubation", variant: 'destructive' });
     }
   };
@@ -204,49 +190,10 @@ export const EvaluationDashboard: React.FC<EvaluationDashboardProps> = ({
   // Fonction pour gérer le refus
   const handleRefuse = async () => {
     try {
-      // Mise à jour du statut candidature en BD
-      const { error } = await supabase
-        .from('applications')
-        .update({
-          status: 'refuse',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', applicationId);
+      // Mise à jour via API backend
+      await updateApplication(applicationId, { status: 'refuse' });
 
-      if (error) {
-        console.error('❌ Erreur BD lors du refus:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible d'enregistrer le refus. Réessayez.",
-          variant: 'destructive'
-        });
-        return;
-      }
-
-      // Envoyer email statut (non bloquant)
-      try {
-        const toEmail = await (async () => {
-          const { data: app } = await supabase
-            .from('applications')
-            .select('candidate_id, job_offers!applications_job_offer_id_fkey(title), users!applications_candidate_id_fkey(email, first_name)')
-            .eq('id', applicationId)
-            .maybeSingle();
-          const rel: any = (app as any)?.users;
-          return Array.isArray(rel) ? (rel[0] as any)?.email as string | undefined : (rel as any)?.email as string | undefined;
-        })();
-        if (toEmail) {
-          await supabase.functions.invoke('send_application_status_update', {
-            body: {
-              to: toEmail,
-              firstName: candidateName?.split(' ')?.[0] || '',
-              jobTitle,
-              status: 'refuse'
-            }
-          });
-        }
-      } catch {
-        /* non bloquant */
-      }
+      // Email envoyé automatiquement par le backend
 
       // Propager au parent (pipeline, etc.)
       onStatusChange('refuse');
