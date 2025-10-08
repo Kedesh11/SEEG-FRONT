@@ -8,7 +8,7 @@ import { useApplication } from "@/hooks/useApplications";
 import { useApplicationDocuments, getDocumentTypeLabel, formatFileSize } from "@/hooks/useDocuments";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-// // Supabase import removed - using Backend API
+// Backend API uniquement - pas de Supabase
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { downloadCandidateDocumentsAsZip } from "@/utils/downloadUtils";
@@ -37,15 +37,17 @@ export function CandidateDetailModal({ applicationId, isOpen, onClose }: Candida
   const { toast } = useToast();
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
 
-  // Normalise une URL de document pour pointer vers le bucket public Supabase
+  // Normalise une URL de document pour pointer vers l'API backend
   const ensureAbsoluteUrl = (path?: string | null) => {
     if (!path) return '';
     if (path.startsWith('http')) return path;
-    const base = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '') || '';
+    // Les documents sont servis par l'API backend
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://seeg-backend-api.azurewebsites.net';
     const p = String(path).trim().replace(/^\/+/, '');
-    if (p.startsWith('storage/v1/object/public/')) return `${base}/${p}`;
-    if (p.startsWith('application-documents/')) return `${base}/storage/v1/object/public/${p}`;
-    return `${base}/storage/v1/object/public/application-documents/${p}`;
+    // Si le chemin contient déjà /api/, le retourner tel quel
+    if (p.startsWith('api/')) return `${apiBase}/${p}`;
+    // Sinon, construire l'URL complète vers l'endpoint de documents
+    return `${apiBase}/api/v1/documents/${p}`;
   };
 
   // Fonction pour télécharger tous les documents en ZIP
@@ -90,7 +92,7 @@ export function CandidateDetailModal({ applicationId, isOpen, onClose }: Candida
     }
   };
 
-  // Remplacement du temps réel Supabase par un polling léger pendant l'ouverture du modal
+  // Polling pour rafraîchir les données pendant que le modal est ouvert
   useEffect(() => {
     if (!applicationId || !isOpen) return;
 

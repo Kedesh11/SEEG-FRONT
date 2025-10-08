@@ -13,7 +13,20 @@ export interface ApiOptions {
 
 function getApiBaseUrl(): string {
   // Support Vite envs: VITE_API_BASE_URL without trailing slash
-  const raw = (import.meta as unknown as { env?: Record<string, string> })?.env?.VITE_API_BASE_URL as string | undefined;
+  const env = import.meta.env;
+  const raw = env?.VITE_API_BASE_URL as string | undefined;
+  
+  // En développement (localhost), utiliser le proxy Vite (retourner une chaîne vide)
+  // Le proxy Vite redirigera automatiquement /api/* vers le backend Azure
+  const isDevelopment = env?.DEV === true || env?.MODE === 'development';
+  
+  if (isDevelopment) {
+    // En mode développement, TOUJOURS utiliser le proxy (chaîne vide)
+    // Même si VITE_API_BASE_URL est défini
+    console.log('🔧 Mode développement détecté - utilisation du proxy Vite pour les requêtes API');
+    return ""; // Utiliser le proxy Vite en développement
+  }
+  
   const fallback = "https://seeg-backend-api.azurewebsites.net"; // prod default
   const base = (raw && typeof raw === "string" ? raw : fallback).replace(/\/$/, "");
   return base;
@@ -31,6 +44,18 @@ function getAuthToken(): string | null {
 async function handleResponse(res: Response, responseType: ResponseType = "json") {
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    
+    // 🔍 LOG DE DÉBOGAGE - Afficher l'erreur backend
+    console.error(`❌ [API ERROR] Status ${res.status}:`, text);
+    
+    // Essayer de parser l'erreur JSON si possible
+    try {
+      const errorJson = JSON.parse(text);
+      console.error('❌ [API ERROR] Détails:', errorJson);
+    } catch {
+      // L'erreur n'est pas en JSON
+    }
+    
     throw new Error(text || `${res.status} ${res.statusText}`);
   }
 
@@ -74,11 +99,26 @@ function buildHeaders(init?: HeadersInit, hasBody?: boolean, isFormData?: boolea
 }
 
 function resolveUrl(url: string): string {
-  // If url starts with http(s), use as-is. If it starts with '/', prefix with API base
+  const apiBase = getApiBaseUrl();
+  
+  // If url starts with http(s), use as-is
   if (/^https?:\/\//i.test(url)) return url;
-  if (url.startsWith("/")) return `${getApiBaseUrl()}${url}`;
-  // Relative path fallback
-  return `${getApiBaseUrl()}/${url.replace(/^\//, "")}`;
+  
+  // If it starts with '/', prefix with API base (or keep as-is if base is empty)
+  let resolvedUrl: string;
+  if (url.startsWith("/")) {
+    resolvedUrl = `${apiBase}${url}`;
+  } else {
+    // Relative path fallback
+    resolvedUrl = `${apiBase}/${url.replace(/^\//, "")}`;
+  }
+  
+  // Log en développement pour déboguer
+  if (import.meta.env.DEV) {
+    console.log(`🌐 API Request: ${url} → ${resolvedUrl}`);
+  }
+  
+  return resolvedUrl;
 }
 
 async function request<T = unknown>(

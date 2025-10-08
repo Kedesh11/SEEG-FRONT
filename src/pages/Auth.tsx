@@ -19,7 +19,7 @@ import { signupCandidate } from "@/integrations/api/auth";
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoading, beToken, signUp } = useAuth();
+  const { isLoading, token, signUp } = useAuth();
   const { login: beLogin, verifyMatricule: beVerifyMatricule } = useBackendAuth();
   const [activeTab, setActiveTab] = useState("signin");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -66,7 +66,10 @@ export default function Auth() {
     firstName: "",
     lastName: "",
     phone: "",
-    matricule: ""
+    matricule: "",
+    gender: "M", // Valeur par défaut
+    birthDate: "", // Date de naissance
+    status: "interne" as "interne" | "externe" // Statut candidat
   });
 
   const [matriculeError, setMatriculeError] = useState<string>("");
@@ -78,12 +81,26 @@ export default function Auth() {
     setIsMatriculeValid(false);
     setMatriculeError("");
     setLastVerifiedMatricule("");
-  }, [signUpData.matricule]);
+    
+    // Si externe, pas besoin de matricule
+    if (signUpData.status === "externe") {
+      setIsMatriculeValid(true);
+      setMatriculeError("");
+    }
+  }, [signUpData.matricule, signUpData.status]);
 
   const verifyMatricule = useCallback(async (): Promise<boolean> => {
+    // Si externe, le matricule n'est pas requis
+    if (signUpData.status === "externe") {
+      setMatriculeError("");
+      setIsMatriculeValid(true);
+      setLastVerifiedMatricule("");
+      return true;
+    }
+    
     const matricule = signUpData.matricule.trim();
     if (!matricule) {
-      setMatriculeError("Le matricule est requis.");
+      setMatriculeError("Le matricule est requis pour les candidats internes.");
       setIsMatriculeValid(false);
       return false;
     }
@@ -91,7 +108,7 @@ export default function Auth() {
     try {
       setIsVerifyingMatricule(true);
       // Si l'utilisateur est déjà authentifié côté backend, utiliser l'endpoint sécurisé
-      if (beToken && beToken.length > 0) {
+      if (token && token.length > 0) {
         try {
           const result = await beVerifyMatricule();
           if (!result?.valid) {
@@ -128,7 +145,7 @@ export default function Auth() {
     finally {
       setIsVerifyingMatricule(false);
     }
-  }, [signUpData.matricule, beToken, beVerifyMatricule]);
+  }, [signUpData.matricule, token, beVerifyMatricule]);
 
   useEffect(() => {
     if (!signUpData.matricule) return;
@@ -205,30 +222,22 @@ export default function Auth() {
         setIsSubmitting(false);
         return;
       }
-      const supa = await signUp(signUpData.email, signUpData.password, {
+      // Inscription via le hook useAuth (qui gère la conversion)
+      const result = await signUp(signUpData.email, signUpData.password, {
         role: 'candidat',
         first_name: signUpData.firstName,
         last_name: signUpData.lastName,
         phone: signUpData.phone,
-        matricule: signUpData.matricule,
+        matricule: signUpData.status === "interne" ? signUpData.matricule : "", // Matricule seulement pour internes
+        gender: signUpData.gender,
+        birth_date: signUpData.birthDate || '1990-01-01', // Date saisie ou défaut
+        candidate_status: signUpData.status, // Statut interne/externe
       });
-      if ((supa as any)?.error) {
-        toast.error("Inscription Supabase échouée: " + (supa as any).error.message);
-      setIsSubmitting(false);
-      return;
-    }
-      try {
-        await signupCandidate({
-          email: signUpData.email,
-          password: signUpData.password,
-          first_name: signUpData.firstName,
-          last_name: signUpData.lastName,
-          matricule: signUpData.matricule,
-          date_of_birth: '1990-01-01',
-          phone: signUpData.phone,
-        } as any);
-      } catch (e) {
-        // non bloquant
+      
+      if (result?.error) {
+        toast.error("Erreur d'inscription: " + result.error.message);
+        setIsSubmitting(false);
+        return;
       }
       toast.success("Compte créé ! Vous pouvez vous connecter.");
       setActiveTab('signin');
@@ -368,6 +377,26 @@ export default function Auth() {
                     />
                   )}
                   <form onSubmit={handleSignUp} className="space-y-4">
+                    {/* Sélection Statut Interne/Externe */}
+                    <div className="space-y-2">
+                      <Label htmlFor="status" className="text-sm font-semibold">Type de candidature *</Label>
+                      <select
+                        id="status"
+                        value={signUpData.status}
+                        onChange={(e) => setSignUpData({ ...signUpData, status: e.target.value as "interne" | "externe", matricule: e.target.value === "externe" ? "" : signUpData.matricule })}
+                        className="flex h-11 w-full rounded-md border-2 border-primary/20 bg-background px-3 py-2 text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        required
+                      >
+                        <option value="interne">Candidat Interne SEEG </option>
+                        <option value="externe">Candidat Externe </option>
+                      </select>
+                      <p className="text-xs text-muted-foreground">
+                        {signUpData.status === "interne" 
+                          ? "✓ Vous êtes employé(e) de la SEEG" 
+                          : "✓ Vous n'êtes pas employé(e) de la SEEG"}
+                      </p>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="firstName" className="text-sm">Prénom</Label>
@@ -412,35 +441,66 @@ export default function Auth() {
                       </div>
                     </div>
 
-                    {/* Matricule field (required, gates the rest of the form) */}
-                    <div className="space-y-2">
-                      <Label htmlFor="matricule">Matricule</Label>
-                      <div className="relative">
-                        <Input
-                          id="matricule"
-                          placeholder="Ex: 1234"
-                          title="Le matricule ne doit contenir que des chiffres."
-                          value={signUpData.matricule}
-                          onChange={(e) => setSignUpData({ ...signUpData, matricule: e.target.value })}
-                          required
-                          className={matriculeError ? "border-destructive" : isMatriculeValid ? "border-green-500" : ""}
-                          disabled={false}
-                        />
-                        {isVerifyingMatricule && (
-                          <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />)
-                        }
+                    {/* Matricule field - Visible uniquement pour les internes */}
+                    {signUpData.status === "interne" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="matricule">Matricule SEEG *</Label>
+                        <div className="relative">
+                          <Input
+                            id="matricule"
+                            placeholder="Ex: 1234"
+                            title="Le matricule ne doit contenir que des chiffres."
+                            value={signUpData.matricule}
+                            onChange={(e) => setSignUpData({ ...signUpData, matricule: e.target.value })}
+                            required={signUpData.status === "interne"}
+                            className={matriculeError ? "border-destructive" : isMatriculeValid ? "border-green-500" : ""}
+                            disabled={false}
+                          />
+                          {isVerifyingMatricule && (
+                            <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />)
+                          }
+                        </div>
+                        {matriculeError && (
+                          <Card className="border-red-200 bg-red-50">
+                            <CardContent className="py-3 flex items-start gap-2 text-red-700">
+                              <AlertCircle className="w-4 h-4 mt-0.5" />
+                              <div>
+                                <p className="text-sm font-medium">Vérification du matricule</p>
+                                <p className="text-sm">{matriculeError}</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
                       </div>
-                      {matriculeError && (
-                        <Card className="border-red-200 bg-red-50">
-                          <CardContent className="py-3 flex items-start gap-2 text-red-700">
-                            <AlertCircle className="w-4 h-4 mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium">Vérification du matricule</p>
-                              <p className="text-sm">{matriculeError}</p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="gender">Sexe *</Label>
+                        <select
+                          id="gender"
+                          value={signUpData.gender}
+                          onChange={(e) => setSignUpData({ ...signUpData, gender: e.target.value })}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          required
+                        >
+                          <option value="M">Masculin</option>
+                          <option value="F">Féminin</option>
+                        </select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="birthDate">Date de naissance *</Label>
+                        <Input
+                          id="birthDate"
+                          type="date"
+                          value={signUpData.birthDate}
+                          onChange={(e) => setSignUpData({ ...signUpData, birthDate: e.target.value })}
+                          max={new Date().toISOString().split('T')[0]}
+                          className="text-sm"
+                          required
+                        />
+                      </div>
                     </div>
 
                     <div className="space-y-2">

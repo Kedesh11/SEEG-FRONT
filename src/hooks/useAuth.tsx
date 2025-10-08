@@ -22,6 +22,7 @@ export interface SignUpMetadata {
   current_position?: string;
   bio?: string;
   gender?: string;
+  candidate_status?: "interne" | "externe"; // Statut du candidat
 }
 
 // User simplifié (backend uniquement)
@@ -118,19 +119,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, metadata?: SignUpMetadata) => {
     try {
-      await signupCandidate({
+      // Convertir le matricule en number (l'API attend un INTEGER)
+      const matriculeNum = metadata?.matricule ? parseInt(metadata.matricule, 10) : 0;
+      
+      // Convertir gender en sexe (M ou F uniquement, pas "Autre")
+      let sexe: "M" | "F" = "M"; // Valeur par défaut
+      if (metadata?.gender === 'Femme' || metadata?.gender === 'F') {
+        sexe = "F";
+      } else if (metadata?.gender === 'Homme' || metadata?.gender === 'M') {
+        sexe = "M";
+      }
+
+      const payload = {
         email,
         password,
         first_name: metadata?.first_name || '',
         last_name: metadata?.last_name || '',
-        matricule: metadata?.matricule || '',
+        matricule: matriculeNum,
         date_of_birth: metadata?.birth_date || '1990-01-01',
-        sexe: metadata?.gender === 'Homme' ? 'M' : metadata?.gender === 'Femme' ? 'F' : 'Autre',
+        sexe: sexe,
         phone: metadata?.phone,
-      });
+      };
+
+      // 🔍 LOG DE DÉBOGAGE - Afficher ce qui est envoyé
+      console.log('📤 [SIGNUP] Payload envoyé à l\'API:', JSON.stringify(payload, null, 2));
+      console.log('📤 [SIGNUP] Type de matricule:', typeof payload.matricule, '- Valeur:', payload.matricule);
+      console.log('📤 [SIGNUP] Valeur de sexe:', payload.sexe);
+
+      await signupCandidate(payload);
 
       return { error: null };
     } catch (error: any) {
+      console.error('❌ [SIGNUP] Erreur:', error);
       return { 
         error: new Error(error?.message || "Erreur lors de l'inscription")
       };
