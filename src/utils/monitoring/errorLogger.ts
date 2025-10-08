@@ -53,13 +53,13 @@ class ErrorLogger {
       },
       {
         errorPattern: /unauthorized|403|401/i,
-        solution: 'Vérifier les permissions RLS et rediriger vers la page de connexion si nécessaire',
+        solution: 'Vérifier les permissions et rediriger vers la page de connexion si nécessaire',
         category: 'permission',
         severity: 'high',
       },
       {
-        errorPattern: /supabase.*client/i,
-        solution: 'Vérifier la configuration des variables d\'environnement VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY',
+        errorPattern: /api.*error|backend.*error/i,
+        solution: 'Vérifier la connexion à l\'API backend et les endpoints appelés',
         category: 'database',
         severity: 'critical',
       },

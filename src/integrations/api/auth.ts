@@ -31,9 +31,9 @@ export interface CandidateSignupRequest {
   password: string;
   first_name: string;
   last_name: string;
-  matricule: string;
+  matricule: number; // INTEGER (pas string !)
   date_of_birth: string; // YYYY-MM-DD
-  sexe?: "M" | "F" | "Autre";
+  sexe: "M" | "F"; // OBLIGATOIRE (pas optionnel !)
   phone?: string;
 }
 
